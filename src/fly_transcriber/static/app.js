@@ -1,46 +1,12 @@
 // Dashboard UI: Preact + htm, vendored so it runs offline with no build step.
+import { html, render, useEffect, useMemo, useRef, useState } from "./vendor/htm-preact-3.1.1.js";
 import {
-  html,
-  render,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "./vendor/htm-preact-3.1.1.js";
-
-export const BRAND = {
-  name: "FLY",
-  // The acronym letters; "of" is filler and rendered as such.
-  expansion: [["F", "aithful"], ["L", "ogger"], "of", ["Y", "apping"]],
-};
-
-const BRAND_TEXT = BRAND.expansion.map((w) => (Array.isArray(w) ? w.join("") : w)).join(" ");
+  BRAND, BRAND_TEXT, Avatar, Button, Empty, Field, FilingFields, Icon, IconButton, Logo, Pill,
+  Switch, Toasts, api, awaitsFiling, fmtDuration, speakerHue, speakerName, status,
+  useFilingForm, useToasts,
+} from "./common.js";
 
 const POLL_MS = 1000;
-const SPEAKER_HUES = 6;
-
-// -- helpers ----------------------------------------------------------------
-
-function fmtDuration(seconds) {
-  const s = Math.max(0, Math.floor(seconds || 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (h) return `${h} h ${m} min`;
-  if (m) return `${m} min`;
-  return `${s} s`;
-}
-
-async function api(path, body) {
-  const response = await fetch(path, body === undefined ? {} : {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
-  return data;
-}
 
 function useHashRoute() {
   const read = () => {
@@ -60,40 +26,6 @@ function useHashRoute() {
 
 const go = (hash) => { location.hash = hash; };
 
-/** Stable colour slot per diarization label, so a speaker keeps one colour everywhere. */
-function speakerHue(label, speakers) {
-  const index = speakers.indexOf(label);
-  return index < 0 ? "none" : String(index % SPEAKER_HUES);
-}
-
-/** "SPEAKER_01" reads as "Speaker 2" until the user names them. */
-function prettyLabel(label) {
-  const match = label?.match(/^SPEAKER_(\d+)$/);
-  return match ? `Speaker ${Number(match[1]) + 1}` : label || "Unattributed";
-}
-
-function speakerName(label, meeting) {
-  return meeting.state.speaker_names?.[label] || prettyLabel(label);
-}
-
-function initials(name) {
-  const match = name.match(/^(?:SPEAKER_|Speaker )(\d+)$/);
-  if (match) return name.startsWith("SPEAKER_") ? String(Number(match[1]) + 1) : match[1];
-  return name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
-}
-
-function status(meeting) {
-  if (meeting.processing) return { tone: "busy", label: "Processing" };
-  if (!meeting.has_transcript) return { tone: "muted", label: "No transcript" };
-  if (meeting.filed.length) return { tone: "ok", label: "Filed" };
-  if (meeting.state.dismissed) return { tone: "muted", label: "Skipped" };
-  return { tone: "warn", label: "Not filed" };
-}
-
-/** Matches the menubar's "Ready to file (n)" count. */
-const awaitsFiling = (m) =>
-  m.has_transcript && !m.processing && !m.filed.length && !m.state.dismissed;
-
 async function copyTranscript(meeting, toast) {
   try {
     const detail = await api(`/api/meeting?name=${encodeURIComponent(meeting.name)}`);
@@ -105,99 +37,7 @@ async function copyTranscript(meeting, toast) {
   }
 }
 
-// -- icons ------------------------------------------------------------------
-
-const ICONS = {
-  copy: "M8 8V5.5A1.5 1.5 0 0 1 9.5 4h9A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H16M5.5 8h9A1.5 1.5 0 0 1 16 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 18.5v-9A1.5 1.5 0 0 1 5.5 8Z",
-  chevron: "m9 6 6 6-6 6",
-  back: "M15 6l-6 6 6 6",
-  folder: "M3.5 7.5A1.5 1.5 0 0 1 5 6h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5v-10Z",
-  send: "M4 12h13M13 7l5 5-5 5",
-  close: "M6 6l12 12M18 6 6 18",
-  mic: "M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3Zm-6 8a6 6 0 0 0 12 0M12 18v2",
-};
-
-const Icon = ({ name, size = 16 }) => html`
-  <svg class="icon" width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d=${ICONS[name]} />
-  </svg>`;
-
-// -- primitives -------------------------------------------------------------
-
-const Button = ({ variant = "secondary", size, icon, children, class: extra = "", ...props }) => html`
-  <button type="button" class=${`btn btn-${variant} ${size ? `btn-${size}` : ""} ${extra}`} ...${props}>
-    ${icon && html`<${Icon} name=${icon} />`}
-    ${children && html`<span>${children}</span>`}
-  </button>`;
-
-const IconButton = ({ icon, label, ...props }) => html`
-  <button type="button" class="btn btn-ghost btn-icon" title=${label} aria-label=${label} ...${props}>
-    <${Icon} name=${icon} />
-  </button>`;
-
-const Pill = ({ tone, children }) => html`<span class=${`pill pill-${tone}`}>${children}</span>`;
-
-const Field = ({ label, hint, children }) => html`
-  <label class="field">
-    <span class="field-label">${label}</span>
-    ${children}
-    ${hint && html`<span class="field-hint">${hint}</span>`}
-  </label>`;
-
-const Switch = ({ label, hint, checked, onChange }) => html`
-  <label class="switch-row">
-    <span class="switch-text">
-      <span class="switch-label">${label}</span>
-      ${hint && html`<span class="field-hint">${hint}</span>`}
-    </span>
-    <input type="checkbox" role="switch" class="switch" checked=${checked}
-      onChange=${(e) => onChange(e.currentTarget.checked)} />
-  </label>`;
-
-const Avatar = ({ label, meeting }) => {
-  const name = speakerName(label, meeting);
-  return html`<span class="avatar" data-hue=${speakerHue(label, meeting.speakers)} title=${name}>
-    ${initials(name)}
-  </span>`;
-};
-
-const Empty = ({ title, children }) => html`
-  <div class="empty">
-    <div class="empty-mark"><${Icon} name="mic" size=${22} /></div>
-    <div class="empty-title">${title}</div>
-    <div class="empty-body">${children}</div>
-  </div>`;
-
-// -- toasts -----------------------------------------------------------------
-
-function useToasts() {
-  const [toasts, setToasts] = useState([]);
-  const push = useCallback((text, tone = "ok") => {
-    const id = Math.random();
-    setToasts((all) => [...all, { id, text, tone }]);
-    setTimeout(() => setToasts((all) => all.filter((t) => t.id !== id)), 3200);
-  }, []);
-  return [toasts, push];
-}
-
-const Toasts = ({ toasts }) => html`
-  <div class="toasts" role="status">
-    ${toasts.map((t) => html`<div key=${t.id} class=${`toast toast-${t.tone}`}>${t.text}</div>`)}
-  </div>`;
-
 // -- chrome -----------------------------------------------------------------
-
-/** A microphone with fly wings. Mirrors favicon.svg. */
-const Logo = ({ size = 28 }) => html`
-  <svg class="logo" width=${size} height=${size} viewBox="0 0 32 32" aria-hidden="true">
-    <rect width="32" height="32" rx="9" fill="var(--brand)" />
-    <ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="var(--logo-wing)" fill-opacity=".85" />
-    <ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="var(--logo-wing)" fill-opacity=".85" />
-    <rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="var(--brand-ink)" />
-    <path d="M14.4 9.6h3.2M14.4 12.2h3.2" stroke="var(--brand)" stroke-width="1.1" stroke-linecap="round" />
-    <path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="var(--brand-ink)" stroke-width="1.7" stroke-linecap="round" fill="none" />
-  </svg>`;
 
 const Footer = () => html`
   <footer class="footer">
@@ -278,7 +118,7 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
           <p class="subtle">
             ${meetings.length
               ? unfiled ? `${unfiled} waiting to be filed` : "Everything is filed"
-              : "Start a recording from the menubar"}
+              : "Start a recording from the FLY icon in the menubar"}
           </p>
         </div>
       </div>
@@ -287,7 +127,7 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
             ${meetings.map((m) => html`<${RecordingRow} key=${m.name} meeting=${m} onFile=${onFile} toast=${toast} />`)}
           </ul>`
         : html`<${Empty} title="No recordings yet">
-            Click <strong>○</strong> in the menubar to start one. Finished transcripts show up here.
+            Click the FLY icon in the menubar to start one. Finished transcripts show up here.
           <//>`}
     </section>`;
 };
@@ -423,57 +263,20 @@ const RecordingView = ({ meeting, onFile, toast }) => {
 
 const FileDialog = ({ meeting, projects, onClose, toast }) => {
   const ref = useRef();
-  const [title, setTitle] = useState(meeting.state.title || meeting.title || "");
-  const [participants, setParticipants] = useState((meeting.state.participants || []).join(", "));
-  const [names, setNames] = useState({ ...(meeting.state.speaker_names || {}) });
-  const [project, setProject] = useState(
-    meeting.state.pending_project || meeting.filed[0]?.project || projects[0]?.name || "",
-  );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const form = useFilingForm(meeting, projects, {
+    onFiled: (project) => { toast(`Filed to ${project}`); onClose(); },
+    onSkipped: () => { toast("Skipped — it won't count as waiting"); ref.current.close(); },
+  });
 
   useEffect(() => {
     ref.current.showModal();
     ref.current.querySelector("input")?.focus();
   }, []);
 
-  const submit = async (event) => {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    const speaker_names = Object.fromEntries(
-      Object.entries(names).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v),
-    );
-    try {
-      await api("/api/file", {
-        meeting: meeting.name,
-        project,
-        title: title.trim(),
-        participants: participants.split(",").map((s) => s.trim()).filter(Boolean),
-        speaker_names,
-      });
-      toast(`Filed to ${project}`);
-      onClose();
-    } catch (err) {
-      setError(err.message);
-      setBusy(false);
-    }
-  };
-
-  const skip = async () => {
-    try {
-      await api("/api/dismiss", { meeting: meeting.name });
-      toast("Skipped — it won't count as waiting");
-      ref.current.close();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   return html`
     <dialog class="dialog" ref=${ref} onClose=${onClose}
       onClick=${(e) => e.target === ref.current && ref.current.close()}>
-      <form method="dialog" class="dialog-body" onSubmit=${submit}>
+      <form method="dialog" class="dialog-body" onSubmit=${form.submit}>
         <div class="dialog-head">
           <div>
             <h2>File recording</h2>
@@ -482,50 +285,15 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
           <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
         </div>
 
-        <div class="stack">
-          <${Field} label="Title" hint="Names the filed note.">
-            <input class="input" value=${title} placeholder="Weekly sync"
-              onInput=${(e) => setTitle(e.currentTarget.value)} />
-          <//>
-          <${Field} label="Participants" hint="Comma-separated.">
-            <input class="input" value=${participants} placeholder="Aino, Mikko, Sara"
-              onInput=${(e) => setParticipants(e.currentTarget.value)} />
-          <//>
-
-          ${meeting.speakers.length > 0 && html`
-            <div class="field">
-              <span class="field-label">Who is who</span>
-              <div class="speaker-map">
-                ${meeting.speakers.map((label) => html`
-                  <div class="speaker-map-row" key=${label}>
-                    <span class="avatar" data-hue=${speakerHue(label, meeting.speakers)}>${initials(label)}</span>
-                    <div class="speaker-map-fields">
-                      <input class="input" value=${names[label] || ""} placeholder=${prettyLabel(label)}
-                        onInput=${(e) => setNames({ ...names, [label]: e.currentTarget.value })} />
-                      ${meeting.samples?.[label] && html`<span class="quote">“${meeting.samples[label]}”</span>`}
-                    </div>
-                  </div>`)}
-              </div>
-              <span class="field-hint">Names apply to the filed copy only.</span>
-            </div>`}
-
-          <${Field} label="Destination">
-            <select class="input" value=${project} onChange=${(e) => setProject(e.currentTarget.value)}>
-              ${projects.map((p) => html`<option key=${p.name} value=${p.name}>${p.name}</option>`)}
-            </select>
-          <//>
-        </div>
-
-        ${!projects.length && html`<div class="error-text">No projects configured — add one in settings.toml.</div>`}
-        ${error && html`<div class="error-text">${error}</div>`}
+        <${FilingFields} form=${form} meeting=${meeting} projects=${projects} />
 
         <div class="dialog-foot">
           ${awaitsFiling(meeting) && html`
-            <${Button} variant="ghost" class="foot-start" onClick=${skip}
+            <${Button} variant="ghost" class="foot-start" onClick=${form.skip}
               title="Stop counting this one as waiting to be filed">Don't file<//>`}
           <${Button} onClick=${() => ref.current.close()}>Cancel<//>
-          <button type="submit" class="btn btn-primary" disabled=${busy || !projects.length}>
-            ${busy ? "Filing…" : `File to ${project || "…"}`}
+          <button type="submit" class="btn btn-primary" disabled=${form.busy || !projects.length}>
+            ${form.busy ? "Filing…" : `File to ${form.project || "…"}`}
           </button>
         </div>
       </form>

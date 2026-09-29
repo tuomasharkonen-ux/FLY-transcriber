@@ -5,7 +5,8 @@
       "name": "dashboard-preview",
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "python", "scripts/dashboard_preview.py"],
-      "port": 8757
+      "port": 8757,
+      "autoPort": true
     }
   ]
 }

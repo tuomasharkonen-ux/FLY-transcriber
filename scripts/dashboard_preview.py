@@ -1,13 +1,20 @@
 """Serve the dashboard with fake data, for UI work without the menubar app.
 
     uv run python scripts/dashboard_preview.py   # http://127.0.0.1:8757/
+                                                 # popover: /popover.html
 """
 
 from __future__ import annotations
 
+import os
+import time
+
 from fly_transcriber.server import Api, make_server
 
-PORT = 8757
+PORT = int(os.environ.get("PORT", 8757))
+
+#: The fake run: processing by default; the record button toggles a recording.
+RUN = {"started": None}
 
 TURNS = [
     ("SPEAKER_00", 3, "Onko teillä jo ne testitunnukset?"),
@@ -38,10 +45,23 @@ def meeting(name, title, when, duration, speakers, filed=(), processing=False, t
     }
 
 
+def run_summary():
+    if RUN["started"] is None:
+        return {"css": "busy", "label": "Diarizing", "detail": "42:10 captured", "elapsed": "42:10"}
+    s = int(time.time() - RUN["started"])
+    return {"css": "recording", "label": f"Recording — {s // 60}:{s % 60:02d}", "detail": "",
+            "elapsed": f"{s // 60}:{s % 60:02d}"}
+
+
+def record():
+    RUN["started"] = None if RUN["started"] else time.time()
+    return {"ok": True}
+
+
 def snapshot():
     three = ["SPEAKER_00", "SPEAKER_01", "SPEAKER_02"]
     return {
-        "run": {"css": "busy", "label": "Diarizing", "detail": "42:10 captured"},
+        "run": run_summary(),
         "meetings": [
             meeting("in-progress", "", "29.09. 10:00", 0, [], processing=True, transcript=False),
             meeting("acme-sync", "", "28.09. 14:20", 3420, three),
@@ -78,6 +98,6 @@ def dismiss(name):
 if __name__ == "__main__":
     api = Api(snapshot=snapshot, file_meeting=file_meeting, save_settings=lambda p: {"ok": True},
               forget=lambda n: {"ok": True}, meeting_detail=detail, reveal=lambda n: {"ok": True},
-              dismiss=dismiss)
+              dismiss=dismiss, record=record)
     print(f"http://127.0.0.1:{PORT}/")
     make_server(api, PORT).serve_forever()

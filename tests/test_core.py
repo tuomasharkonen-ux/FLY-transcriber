@@ -1067,6 +1067,35 @@ def test_server_dismisses_meeting():
         server.shutdown()
 
 
+def test_server_toggles_recording():
+    api, calls = _stub_api()
+
+    def record():
+        calls["record"] = calls.get("record", 0) + 1
+        return {"ok": True}
+
+    api.record = record
+    base, server = _client(api)
+    try:
+        req = urllib.request.Request(base + "/api/record", data=b"{}", method="POST")
+        assert json.loads(urllib.request.urlopen(req).read()) == {"ok": True}
+        assert calls["record"] == 1
+    finally:
+        server.shutdown()
+
+
+def test_server_serves_popover_page():
+    api, _ = _stub_api()
+    base, server = _client(api)
+    try:
+        page = urllib.request.urlopen(base + "/popover.html").read().decode()
+        assert "/popover.js" in page
+        shared = urllib.request.urlopen(base + "/common.js")
+        assert shared.headers["Content-Type"].startswith("text/javascript")
+    finally:
+        server.shutdown()
+
+
 def test_server_reports_errors_as_json():
     """A blank 500 in the browser would give no clue what went wrong."""
 

@@ -1,0 +1,151 @@
+/* The menubar popover. Loaded after style.css and reuses its components.
+ *
+ * The page is transparent: the system popover material (Liquid Glass on
+ * macOS 26) is the background. So surfaces here are translucent tints of the
+ * text colour rather than solid fills, and secondary text is a step darker
+ * (lighter in dark mode) than on the dashboard, because the material behind it
+ * shifts with the wallpaper.
+ */
+:root {
+  --glass-fill: rgb(255 255 255 / 0.55);
+  --glass-hover: rgb(16 34 46 / 0.06);
+  --glass-press: rgb(16 34 46 / 0.1);
+  --glass-line: rgb(16 34 46 / 0.12);
+
+  --surface: var(--glass-fill);
+  --surface-2: var(--glass-hover);
+  --line: var(--glass-line);
+  --line-strong: rgb(16 34 46 / 0.18);
+  --text-2: #3d505c;
+  --text-3: var(--slate-600);
+  --shadow-sm: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-fill: rgb(255 255 255 / 0.07);
+    --glass-hover: rgb(255 255 255 / 0.07);
+    --glass-press: rgb(255 255 255 / 0.12);
+    --glass-line: rgb(255 255 255 / 0.12);
+    --line-strong: rgb(255 255 255 / 0.18);
+    --text-2: #bccbd1;
+    --text-3: #a3b8c0;
+  }
+}
+
+html, body { background: transparent; }
+body { font-size: 13px; cursor: default; -webkit-user-select: none; user-select: none; }
+input, select { -webkit-user-select: text; user-select: text; }
+#root { min-height: 0; display: block; }
+
+.pop { display: grid; gap: 12px; padding: 12px 12px 8px; }
+
+h2 { font-size: 15px; }
+h3 { margin: 0; }
+.subtle { font-size: 12px; margin-top: 2px; }
+
+/* -- header ---------------------------------------------------------------- */
+
+.phead { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+.pbrand { display: flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: 0.08em; padding-left: 2px; }
+.pbrand .logo { width: 22px; height: 22px; }
+.pbrand-tagline { font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--text-3); padding-left: 2px; }
+.phead .btn-icon { width: 28px; height: 28px; margin-right: -4px; }
+
+.pback {
+  display: inline-flex; align-items: center; gap: 2px;
+  margin-left: -6px; padding: 4px 8px 4px 4px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--text-2); font: 500 13px var(--font); cursor: pointer;
+}
+.pback:hover { background: var(--glass-hover); color: var(--text); }
+
+/* -- record control -------------------------------------------------------- */
+
+.rec {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  height: 44px; padding: 0 14px;
+  border: 1px solid var(--glass-line); border-radius: var(--r-md);
+  background: var(--glass-fill); color: var(--text);
+  font: 600 14px var(--font); text-align: left; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+button.rec:hover { background: var(--glass-press); }
+.rec:focus-visible { outline: none; box-shadow: var(--focus); }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex: none; }
+.rec-label { flex: 1; }
+.rec-aside { color: var(--text-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.rec-live { background: var(--danger); border-color: transparent; color: #fff; }
+button.rec-live:hover { background: color-mix(in srgb, var(--danger) 88%, #000); }
+.rec-live .rec-dot { width: 10px; height: 10px; border-radius: 2px; background: #fff; }
+.rec-live .rec-aside { color: #fff; }
+
+.rec-busy { cursor: default; color: var(--busy); font-weight: 550; }
+.rec-busy .rec-dot { background: var(--busy); animation: pulse 1.4s ease-in-out infinite; }
+.rec-busy .rec-aside { font-size: 12px; }
+
+/* The dashboard's dark coral is too light to carry white text. */
+@media (prefers-color-scheme: dark) {
+  .rec-live { background: var(--coral-600); }
+  button.rec-live:hover { background: color-mix(in srgb, var(--coral-600) 88%, #fff); }
+}
+
+/* -- list ------------------------------------------------------------------ */
+
+.psection { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 4px; }
+.psection-aside { font-size: 12px; color: var(--warn); font-weight: 550; }
+
+.plist { list-style: none; margin: 0 -4px; padding: 0; display: grid; gap: 1px; }
+.prow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 14px; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 6px 7px 8px;
+  border: 0; border-radius: var(--r-sm); background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.prow:hover:not(:disabled) { background: var(--glass-hover); }
+.prow:active:not(:disabled) { background: var(--glass-press); }
+.prow:focus-visible { outline: none; box-shadow: var(--focus); }
+.prow:disabled { cursor: default; }
+.prow-main { display: grid; min-width: 0; }
+.prow-title { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow-meta {
+  font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.prow-filed { color: var(--text-2); }
+.prow-chevron { color: var(--text-3); }
+
+.pill { height: 20px; padding: 0 8px; font-size: 11.5px; }
+.pill-ok { background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.pill-warn { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.pill-busy { background: color-mix(in srgb, var(--busy) 13%, transparent); }
+.pill-muted { background: var(--glass-hover); }
+
+.pempty { color: var(--text-2); padding: 12px 2px; }
+
+.pfoot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 -12px; padding: 8px 12px 0; border-top: 1px solid var(--glass-line);
+}
+.pfoot .btn-ghost { margin-left: -6px; }
+
+/* -- filing ---------------------------------------------------------------- */
+
+.pfile { display: grid; gap: 14px; }
+.pfile .stack { gap: 14px; }
+.pfile .pfoot { padding-bottom: 0; }
+.pfile .btn-primary { margin-left: auto; }
+.field { gap: 4px; }
+.field-label { font-size: 12px; }
+.field-hint { font-size: 11.5px; }
+.input { height: 30px; padding: 0 9px; font-size: 13px; border-color: var(--glass-line); }
+.speaker-map-row { grid-template-columns: 24px 1fr; gap: 8px; }
+.speaker-map .avatar { width: 24px; height: 24px; margin-top: 3px; font-size: 10.5px;
+  background: color-mix(in srgb, var(--hue) 16%, transparent); }
+.quote { font-size: 11.5px; }
+.error-text { font-size: 12px; padding: 8px 10px; background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+/* -- toasts ---------------------------------------------------------------- */
+
+.toasts { left: 12px; right: 12px; bottom: 12px; justify-items: center; }
+.toast { padding: 7px 14px; font-size: 12.5px; border-radius: 999px; }

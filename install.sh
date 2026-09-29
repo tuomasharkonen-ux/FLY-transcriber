@@ -174,7 +174,7 @@ else
 fi
 
 echo
-echo "Installed. Look for ○ in the menubar; the dashboard is at http://127.0.0.1:8756/"
+echo "Installed. Look for the FLY icon (a microphone with wings) in the menubar."
 echo
 echo "Your first recording asks for microphone and system audio permission."
 if [ "$speaker_model" -eq 0 ]; then
@@ -183,7 +183,7 @@ if [ "$speaker_model" -eq 0 ]; then
 To get speaker labels without the bundled model, accept the terms at
 https://huggingface.co/pyannote/speaker-diarization-community-1, create a read
 token at https://huggingface.co/settings/tokens, and paste it via the menubar:
-Configure → Set HuggingFace Token…
+right-click the FLY icon → Advanced → Set HuggingFace Token…
 EOF
 fi
 cat <<'EOF'

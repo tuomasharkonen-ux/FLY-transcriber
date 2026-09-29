@@ -15,12 +15,14 @@ A short animated walkthrough is in [`docs/how-it-works.html`](docs/how-it-works.
 
 ## What you get
 
-- **A menubar recorder.** Click to start, click to stop. It captures your
-  microphone and system audio, so remote participants are included.
+- **A menubar recorder.** Click the FLY icon for a small panel: start and stop
+  a recording, see your latest recordings and their status, and file the ones
+  that are waiting. It captures your microphone and system audio, so remote
+  participants are included.
 - **Local transcription** with Whisper `large-v3`. This is accurate even for
   languages that smaller models get wrong, such as Finnish.
-- **Speaker labels** from pyannote. You give each speaker a real name in the
-  dashboard before filing.
+- **Speaker labels** from pyannote. You give each speaker a real name before
+  filing.
 - **Filing into projects.** Each transcript lands in a folder your agent works
   in, such as an Obsidian vault or a repo, marked `status: raw`.
 - **An agent skill** that turns the raw transcript into a proper note. It checks
@@ -55,8 +57,8 @@ The script checks your Mac meets the requirements and then:
    your first recording starts straight away,
 4. adds a login item so the app starts with your Mac, and starts it now.
 
-No accounts or tokens are needed. Look for **○** in the menubar. The dashboard
-is at <http://127.0.0.1:8756/>.
+No accounts or tokens are needed. Look for the FLY icon (a microphone with
+wings) in the menubar.
 
 Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 
@@ -76,21 +78,26 @@ Allow both. Without system audio, the other people on a call aren't recorded.
 
 ### Tell it about your vocabulary
 
-**Configure → Vocabulary Hints…** takes a comma-separated list of names,
-products and jargon. Whisper gets exactly these words wrong, and listing them
-measurably helps. Hints are applied when a recording starts, so add them before
-the meeting. You can also pin the **Transcription Language…** instead of
-relying on auto-detection.
+Open **Settings** (the sliders icon in the panel) and fill in **Vocabulary
+hints**: a comma-separated list of names, products and jargon. Whisper gets
+exactly these words wrong, and listing them measurably helps. Hints are applied
+when a recording starts, so add them before the meeting. You can also pin the
+**Language** instead of relying on auto-detection.
 
 ## Using it
 
-1. **Start Recording** from the menubar. The icon shows a timer (`● 3:24`).
-2. **Stop Recording** when the meeting ends. Processing starts on its own
-   (`◌ Processing`), and live progress is shown in the dashboard.
-3. When it's done the menubar shows `○ Ready to file (1)`. Open the dashboard:
-   it goes straight to the filing form. Add a title and participants, name each
-   speaker (each one is shown with their first line so you can tell them
-   apart), pick a project, and file.
+1. Click the FLY icon and **Start recording**. The icon turns red and shows a
+   timer.
+2. **Stop recording** when the meeting ends. Processing starts on its own; the
+   icon becomes a waveform and the panel shows progress.
+3. When it's done, the icon shows how many recordings are waiting to be filed.
+   Open the panel and click the one marked **File**. Add a title and
+   participants, name each speaker (each one is shown with their first line so
+   you can tell them apart), pick a project, and file.
+
+Clicking a filed recording opens its transcript in the FLY window. Right-click
+the icon for the rest: New Project, the recordings folder, advanced settings
+and Quit.
 4. Ask your agent to process the inbox. The skill turns the transcript into a
    note and deletes the raw file.
 
@@ -99,7 +106,8 @@ meeting takes around 50 minutes, plus speaker detection.
 
 ### Projects
 
-A project is a folder where transcripts are filed. **Configure → New Project…**
+A project is a folder where transcripts are filed. **New Project…** (right-click
+the menubar icon)
 creates `~/<name>/meetings/_inbox/` and writes two files at the project root:
 
 - `CLAUDE.md`: tells the agent what the inbox is and what to watch out for.
@@ -142,7 +150,7 @@ be redone.
 
 Everything stays on your Mac: audio, transcripts and the models that produce
 them. The only network traffic is the model download during install.
-The dashboard listens on `127.0.0.1` only.
+The app's UI is served on `127.0.0.1` only.
 
 **Tell people when you record.** In many places, including the EU, you need
 participants' consent to record a meeting. It's your responsibility to ask.
@@ -151,7 +159,7 @@ participants' consent to record a meeting. It's your responsibility to ask.
 
 | File | What it is |
 |---|---|
-| `~/.config/fly-transcriber/settings.toml` | App settings, also editable in the dashboard |
+| `~/.config/fly-transcriber/settings.toml` | App settings, also editable in Settings |
 | `~/.config/fly-transcriber/hf_token` | Optional HuggingFace token, only needed without the bundled speaker model |
 | `~/.config/fly-transcriber/state.json` | What was filed where, plus the titles and names you typed |
 | `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand |
@@ -165,7 +173,8 @@ Useful settings:
 - `keep_recording`: keeps the WAV file (about 300 MB per hour). Off by default.
 - `language`: empty to auto-detect, or a code like `"fi"` or `"en"`.
 
-After editing `settings.toml` by hand, use **Configure → Reload Settings**.
+After editing `settings.toml` by hand, use **Advanced → Reload Settings** in the
+right-click menu.
 `$HF_TOKEN` overrides the token file if set.
 
 ## Uninstall
@@ -217,9 +226,12 @@ on it:
   hasn't been granted).
 - **Summaries were tried and removed.** The local model (`phi-4-mini`) invented
   a decision nobody made and drifted from Finnish into English partway through.
-- **Text prompts use `osascript`.** As a menubar-only app, the app can't give
-  keyboard focus to a native text field. That's also why most input happens
-  in the web dashboard.
+- **The UI is a local web page in a native popover.** The panel and the FLY
+  window are `WKWebView`s showing the same Preact UI the app serves on
+  `127.0.0.1:8756`, so it can also be opened in a browser. The popover's page is
+  transparent, so the system material (Liquid Glass on macOS 26) shows through.
+  The few remaining text prompts (New Project, the token) use `osascript`,
+  because a native alert's text field can't take focus in a menubar-only app.
 
 ## Development
 
@@ -228,10 +240,10 @@ git clone https://github.com/tuomasharkonen-ux/FLY-transcriber
 cd FLY-transcriber
 uv run fly-transcriber                      # run from source
 uv run pytest                               # tests
-uv run python scripts/dashboard_preview.py  # dashboard with fake data on :8757
+uv run python scripts/dashboard_preview.py  # UI with fake data on :8757 (panel: /popover.html)
 ```
 
-The dashboard is Preact + htm, vendored in `static/vendor/`, with no build step
+The UI is Preact + htm, vendored in `static/vendor/`, with no build step
 and no npm. The tested logic lives in the non-UI modules; see `CLAUDE.md` for an
 architecture overview.
 
@@ -241,7 +253,7 @@ Built on [ownscribe](https://github.com/paberr/ownscribe),
 [WhisperX](https://github.com/m-bain/whisperX),
 [OpenAI Whisper](https://github.com/openai/whisper),
 [pyannote.audio](https://github.com/pyannote/pyannote-audio) and
-[rumps](https://github.com/jaredks/rumps). The dashboard bundles
+[PyObjC](https://github.com/ronaldoussoren/pyobjc). The UI bundles
 [Preact](https://preactjs.com) (MIT) and [htm](https://github.com/developit/htm)
 (Apache-2.0); their licences are in `src/fly_transcriber/static/vendor/`.
 

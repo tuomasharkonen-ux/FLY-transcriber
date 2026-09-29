@@ -106,7 +106,117 @@
   .legend { display: flex; gap: 32px; justify-content: center; margin-top: 56px; font-size: 18px; color: var(--text-2); }
   .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; vertical-align: -1px; }
 
-  /* ---------- 4: transcribe ---------- */
+
+  /* ---------- 4: menubar ---------- */
+  .desk { position: relative; width: 560px; height: 500px; margin: 0 auto; border-radius: 20px;
+    background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
+  /* Flat shapes standing in for windows behind the panel, so the blur reads as glass. */
+  .desk .win { position: absolute; border-radius: 14px; }
+  .mbar { position: absolute; left: 0; right: 0; top: 0; height: 30px; display: flex; align-items: center;
+    justify-content: flex-end; gap: 16px; padding: 0 16px; background: #10283a; font-size: 13px; color: var(--text); }
+  .mbar .dotty { width: 16px; height: 10px; border-radius: 3px; border: 1.5px solid var(--text-2); }
+  .mb-icon { position: relative; display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px;
+    border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .mb-icon svg { width: 16px; height: 18px; }
+  .mb-state { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; white-space: nowrap; }
+  .mb-icon .sizer { visibility: hidden; }
+  .mb-rec { color: var(--coral); }
+  .mb-rec svg path, .mb-rec svg rect { fill: var(--coral); stroke: var(--coral); }
+  .active .mb-icon { animation: tap .3s .2s; }
+  @keyframes tap { 50% { background: rgba(255,255,255,.14); } }
+
+  .fp { position: absolute; left: 120px; top: 44px; width: 360px; height: 408px; border-radius: 18px;
+    background: rgba(16, 40, 58, .62); border: 1px solid rgba(255,255,255,.12);
+    backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
+    transform-origin: 282px 0; opacity: 0; }
+  .active .fp { animation: drop .45s .45s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes drop { from { opacity: 0; transform: scale(.9) translateY(-8px); } to { opacity: 1; transform: none; } }
+  .fp-view { position: absolute; inset: 0; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .fp-head { display: flex; align-items: center; gap: 8px; height: 26px; font-weight: 750; letter-spacing: .08em; font-size: 14px; }
+  .fp-head svg { width: 22px; height: 22px; }
+  .fp-head small { font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--text-2); }
+  .fp-rec { position: relative; height: 42px; }
+  .fp-rec > div { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    border-radius: 12px; font-size: 14px; font-weight: 600; }
+  .fp-rec i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .fp-rec span { flex: 1; }
+  .fp-rec em { font-style: normal; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .rec-live { background: #b0303a; color: #fff; }
+  .rec-live i { border-radius: 2px; background: #fff; }
+  .rec-busy { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: var(--teal-hi); }
+  .rec-busy i { background: var(--teal-hi); animation: blink 1s infinite; }
+  .rec-busy em { font-size: 12px; color: var(--text-2); }
+  .rec-idle { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+  .rec-idle i { background: var(--coral); }
+  .fp-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-2); margin-top: 2px; }
+  .fp-label b { position: relative; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--amber); font-size: 12px; }
+  .fp-rows { display: grid; gap: 2px; margin: 0 -4px; }
+  .fp-row { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px;
+    height: 46px; padding: 0 8px; border-radius: 8px; }
+  .fp-row b { display: block; font-size: 13px; font-weight: 600; }
+  .fp-row span { font-size: 12px; color: var(--text-2); }
+  .fp-pill { position: relative; width: 84px; height: 20px; }
+  .fp-pill > i { position: absolute; right: 0; top: 0; display: inline-flex; align-items: center; gap: 5px; height: 20px;
+    padding: 0 8px; border-radius: 99px; font: 500 11.5px/1 -apple-system, system-ui, sans-serif; font-style: normal; white-space: nowrap; }
+  .fp-pill > i::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .p-busy { color: var(--teal-hi); background: rgba(111,211,213,.14); }
+  .p-warn { color: var(--amber); background: rgba(244,191,90,.15); }
+  .p-ok { color: var(--green-hi); background: rgba(128,237,153,.13); }
+  .fp-foot { margin: auto -14px 0; padding: 10px 14px 0; border-top: 1px solid rgba(255,255,255,.1);
+    display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-2); }
+
+  .fp-form .back { font-size: 13px; color: var(--text-2); height: 22px; }
+  .fp-form h4 { font-size: 15px; }
+  .fp-field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+  .fp-input { height: 30px; border-radius: 8px; padding: 0 9px; display: flex; align-items: center;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); font-size: 13px; font-weight: 400; color: var(--text); }
+  .fp-input .ph { color: var(--text-2); }
+  .fp-who { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; }
+  .fp-who .av { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; margin-top: 3px;
+    font-size: 11px; font-weight: 700; color: var(--c); background: rgba(255,255,255,.08); }
+  .fp-who q { display: block; font-size: 11.5px; font-style: italic; font-weight: 400; color: var(--text-2); margin-top: 3px; }
+  .fp-who q::before, .fp-who q::after { content: ""; }
+  .typed-name { position: relative; }
+  .typed-name .ph, .typed-name .nm { position: absolute; left: 0; top: 50%; transform: translateY(-50%); white-space: nowrap; }
+  .typed-name .nm { overflow: hidden; width: 0; }
+  .active .typed-name .nm { animation: type .45s steps(5) var(--d) forwards; }
+  .active .typed-name .ph { animation: fadeOut .01s var(--d) forwards; }
+  @keyframes type { to { width: var(--w); } }
+  .fp-btn { margin-left: auto; height: 28px; padding: 0 12px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--teal); color: #07131b; font-size: 13px; font-weight: 600; }
+  .active .fp-btn { animation: press .25s 6.85s; }
+  @keyframes press { 50% { transform: scale(.94); } }
+
+  .fp-toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 14px; border-radius: 99px;
+    background: var(--text); color: #07131b; font-size: 12.5px; font-weight: 600; opacity: 0; white-space: nowrap; }
+  .active .fp-toast { animation: on .3s 7.1s both, off .4s 8.8s forwards; }
+
+  /* Timed swaps: .show-at fades in at --in, .hide-at fades out at --out. */
+  .t { opacity: 0; }
+  .active .t { animation: on .3s var(--in, 0s) both, off .3s var(--out, 999s) forwards; }
+  .t0 { opacity: 1; }
+  .active .t0 { animation: off .3s var(--out, 999s) forwards; }
+  @keyframes on { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes off { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+  .cursor { position: absolute; left: 0; top: 0; width: 22px; height: 22px; opacity: 0; pointer-events: none; }
+  .active .cursor { animation: cursor 7.2s .2s both; }
+  @keyframes cursor {
+    0%   { opacity: 0; transform: translate(470px, 330px); }
+    50%  { opacity: 0; transform: translate(470px, 330px); }
+    55%  { opacity: 1; transform: translate(470px, 330px); }
+    61%  { opacity: 1; transform: translate(328px, 201px); }
+    63%  { transform: translate(328px, 201px) scale(.85); }
+    65%  { transform: translate(328px, 201px); }
+    84%  { transform: translate(328px, 201px); }
+    91%  { transform: translate(411px, 422px); }
+    93%  { transform: translate(411px, 422px) scale(.85); }
+    95%  { opacity: 1; transform: translate(411px, 422px); }
+    100% { opacity: 0; transform: translate(411px, 422px); }
+  }
+
+  /* ---------- 5: transcribe ---------- */
   .split { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: center; }
   .model-chip { display: inline-flex; align-items: center; gap: 12px; padding: 10px 20px; border-radius: 99px;
     background: rgba(56,163,165,.15); border: 1px solid var(--teal); font-size: 22px; margin-top: 18px; }
@@ -120,7 +230,7 @@
   @keyframes word { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: none; } }
   .caret { display: inline-block; width: 3px; height: 1em; background: var(--green-hi); vertical-align: -4px; animation: blink .8s infinite; }
 
-  /* ---------- 5: diarize ---------- */
+  /* ---------- 6: diarize ---------- */
   .chat { display: flex; flex-direction: column; gap: 14px; }
   .line { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 18px; }
   .who { position: relative; height: 44px; }
@@ -137,7 +247,7 @@
   .active .bubble { animation: rise .5s var(--d) both, tint .6s calc(var(--d) + .5s) forwards; }
   @keyframes tint { to { border-left-color: var(--c); } }
 
-  /* ---------- 6: no summaries ---------- */
+  /* ---------- 7: no summaries ---------- */
   .versus { display: flex; align-items: center; justify-content: center; gap: 48px; margin-top: 48px; }
   .box { width: 340px; padding: 32px; border-radius: 24px; text-align: center; background: var(--bg-2); border: 2px solid var(--line); }
   .box .em { font-size: 64px; margin-bottom: 12px; }
@@ -160,7 +270,7 @@
   .active .big-arrow { animation: rise .5s 2.2s both, nudge 1s 2.8s infinite; }
   @keyframes nudge { 50% { transform: translateX(12px); } }
 
-  /* ---------- 7: agent skill ---------- */
+  /* ---------- 8: agent skill ---------- */
   .feats { display: flex; flex-direction: column; gap: 14px; margin-top: 26px; }
   .feat { display: flex; align-items: center; gap: 16px; font-size: 21px; }
   .feat .em { font-size: 30px; width: 40px; text-align: center; flex: none; }
@@ -185,7 +295,7 @@
   .summary p { font-size: 19px; margin-bottom: 6px; }
   .summary .review { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-2); margin-top: 12px; }
 
-  /* ---------- 8: details ---------- */
+  /* ---------- 9: details ---------- */
   .facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; margin-top: 28px; }
   .fact { display: flex; gap: 22px; align-items: center; background: var(--bg-2); border: 1px solid var(--line);
     border-radius: 20px; padding: 24px 28px; }
@@ -267,6 +377,88 @@
 
   <!-- 4 -->
   <section class="slide">
+    <div class="split" style="grid-template-columns: .85fr 1.15fr">
+      <div>
+        <div class="kicker a">Lives in your menubar</div>
+        <h2 class="a" style="--d:.1s">One click away</h2>
+        <p class="sub a" style="--d:.25s">Click the icon to record, follow progress and file each transcript. You name the speakers and pick the project right there.</p>
+      </div>
+      <div class="desk a" style="--d:.1s">
+        <div class="win" style="left:40px; top:120px; width:230px; height:300px; background:var(--blue)"></div>
+        <div class="win" style="left:300px; top:70px; width:220px; height:150px; background:var(--green)"></div>
+        <div class="win" style="left:330px; top:260px; width:190px; height:200px; background:var(--amber)"></div>
+        <div class="mbar">
+          <span class="mb-icon">
+            <span class="sizer"><svg viewBox="2 2 28 25.5" aria-hidden="true"><g fill="currentColor"><ellipse cx="9.3" cy="10.5" rx="3.2" ry="6.6" transform="rotate(-56 9.3 10.5)" opacity=".5"/><ellipse cx="22.7" cy="10.5" rx="3.2" ry="6.6" transform="rotate(56 22.7 10.5)" opacity=".5"/><rect x="12.4" y="5" width="7.2" height="12.6" rx="3.6"/></g><path d="M9.4 15a6.6 6.6 0 0 0 13.2 0M16 21.6V25M12.6 25h6.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg><span>12:04</span></span>
+            <span class="mb-state mb-rec t0" style="--out:1.9s"><svg viewBox="2 2 28 25.5" aria-hidden="true"><g fill="currentColor"><ellipse cx="9.3" cy="10.5" rx="3.2" ry="6.6" transform="rotate(-56 9.3 10.5)" opacity=".5"/><ellipse cx="22.7" cy="10.5" rx="3.2" ry="6.6" transform="rotate(56 22.7 10.5)" opacity=".5"/><rect x="12.4" y="5" width="7.2" height="12.6" rx="3.6"/></g><path d="M9.4 15a6.6 6.6 0 0 0 13.2 0M16 21.6V25M12.6 25h6.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg><span>12:04</span></span>
+            <span class="mb-state t" style="--in:1.9s; --out:3.3s"><svg viewBox="0 0 16 18" aria-hidden="true"><path d="M2 8v2M5 5v8M8 2v14M11 5v8M14 7v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></span>
+            <span class="mb-state t" style="--in:3.3s; --out:7s"><svg viewBox="2 2 28 25.5" aria-hidden="true"><g fill="currentColor"><ellipse cx="9.3" cy="10.5" rx="3.2" ry="6.6" transform="rotate(-56 9.3 10.5)" opacity=".5"/><ellipse cx="22.7" cy="10.5" rx="3.2" ry="6.6" transform="rotate(56 22.7 10.5)" opacity=".5"/><rect x="12.4" y="5" width="7.2" height="12.6" rx="3.6"/></g><path d="M9.4 15a6.6 6.6 0 0 0 13.2 0M16 21.6V25M12.6 25h6.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg><span>1</span></span>
+            <span class="mb-state t" style="--in:7s"><svg viewBox="2 2 28 25.5" aria-hidden="true"><g fill="currentColor"><ellipse cx="9.3" cy="10.5" rx="3.2" ry="6.6" transform="rotate(-56 9.3 10.5)" opacity=".5"/><ellipse cx="22.7" cy="10.5" rx="3.2" ry="6.6" transform="rotate(56 22.7 10.5)" opacity=".5"/><rect x="12.4" y="5" width="7.2" height="12.6" rx="3.6"/></g><path d="M9.4 15a6.6 6.6 0 0 0 13.2 0M16 21.6V25M12.6 25h6.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg></span>
+          </span>
+          <span class="dotty"></span>
+          <span>Tue 10:42</span>
+        </div>
+
+        <div class="fp">
+          <div class="fp-view t0" style="--out:4.7s">
+            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#38a3a5"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#c7f9cc" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#c7f9cc" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#07131b"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#07131b" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
+            <div class="fp-rec">
+              <div class="rec-live t0" style="--out:1.9s"><i></i><span>Stop recording</span><em>12:04</em></div>
+              <div class="rec-busy t" style="--in:1.9s; --out:3.3s"><i></i><span>Transcribing…</span><em>12:04 captured</em></div>
+              <div class="rec-idle t" style="--in:3.3s"><i></i><span>Start recording</span></div>
+            </div>
+            <div class="fp-label">Recent <b class="t" style="--in:3.3s">1 to file</b></div>
+            <div class="fp-rows">
+              <div class="fp-row"><div><b>Untitled recording</b><span>29.09. 10:30 · 12 min</span></div>
+                <div class="fp-pill"><i class="p-busy t0" style="--out:3.3s">Processing</i><i class="p-warn t" style="--in:3.3s">File</i></div></div>
+              <div class="fp-row"><div><b>Design review</b><span>28.09. 09:30 · 30 min → Globex</span></div>
+                <div class="fp-pill"><i class="p-ok">Filed</i></div></div>
+              <div class="fp-row"><div><b>Weekly sync</b><span>27.09. 14:20 · 57 min → Acme</span></div>
+                <div class="fp-pill"><i class="p-ok">Filed</i></div></div>
+            </div>
+            <div class="fp-foot">Open FLY</div>
+          </div>
+
+          <div class="fp-view fp-form t" style="--in:4.7s; --out:7s">
+            <div class="back">‹ Recent</div>
+            <h4>File recording</h4>
+            <div class="fp-field">Title<div class="fp-input">Release sync</div></div>
+            <div class="fp-field">Who is who
+              <div class="fp-who" style="--c:var(--teal-hi)"><span class="av">1</span><div>
+                <div class="fp-input typed-name"><span class="ph">Speaker 1</span><span class="nm" style="--d:5.2s; --w:3.2ch">Aino</span></div>
+                <q>“Onko julkaisu vielä perjantaina?”</q></div></div>
+              <div class="fp-who" style="--c:var(--amber)"><span class="av">2</span><div>
+                <div class="fp-input typed-name"><span class="ph">Speaker 2</span><span class="nm" style="--d:5.8s; --w:4.6ch">Mikko</span></div>
+                <q>“On, jos testit menee läpi.”</q></div></div>
+            </div>
+            <div class="fp-field">Destination<div class="fp-input">Acme</div></div>
+            <div class="fp-foot"><span>Don't file</span><span class="fp-btn">File to Acme</span></div>
+          </div>
+
+          <div class="fp-view t" style="--in:7s">
+            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#38a3a5"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#c7f9cc" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#c7f9cc" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#07131b"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#07131b" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
+            <div class="fp-rec"><div class="rec-idle"><i></i><span>Start recording</span></div></div>
+            <div class="fp-label">Recent</div>
+            <div class="fp-rows">
+              <div class="fp-row"><div><b>Release sync</b><span>29.09. 10:30 · 12 min → Acme</span></div>
+                <div class="fp-pill"><i class="p-ok">Filed</i></div></div>
+              <div class="fp-row"><div><b>Design review</b><span>28.09. 09:30 · 30 min → Globex</span></div>
+                <div class="fp-pill"><i class="p-ok">Filed</i></div></div>
+              <div class="fp-row"><div><b>Weekly sync</b><span>27.09. 14:20 · 57 min → Acme</span></div>
+                <div class="fp-pill"><i class="p-ok">Filed</i></div></div>
+            </div>
+            <div class="fp-foot">Open FLY</div>
+          </div>
+          <div class="fp-toast">Filed to Acme</div>
+        </div>
+
+        <svg class="cursor" viewBox="0 0 22 22" aria-hidden="true"><path d="M4 2l14 9.5-6.2 1.2 3.6 6.8-2.6 1.4-3.6-6.9L4 18.5z" fill="#fff" stroke="#07131b" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
     <div class="split">
       <div>
         <div class="kicker a">Step 1 · Transcribe</div>
@@ -281,7 +473,7 @@
     </div>
   </section>
 
-  <!-- 5 -->
+  <!-- 6 -->
   <section class="slide">
     <div class="split" style="grid-template-columns: .9fr 1.3fr">
       <div>
@@ -299,7 +491,7 @@
     </div>
   </section>
 
-  <!-- 6 -->
+  <!-- 7 -->
   <section class="slide" style="text-align:center; align-items:center">
     <div class="kicker a">Step 3 · Handover to your agent</div>
     <h2 class="a" style="--d:.1s">Leaves summary and analysis to your agent</h2>
@@ -311,7 +503,7 @@
     </div>
   </section>
 
-  <!-- 7 -->
+  <!-- 8 -->
   <section class="slide">
     <div class="split" style="grid-template-columns: 1fr 1.05fr">
       <div>
@@ -343,7 +535,7 @@
     </div>
   </section>
 
-  <!-- 8 -->
+  <!-- 9 -->
   <section class="slide">
     <div class="kicker a">Good to know</div>
     <h2 class="a" style="--d:.1s">A few details</h2>
