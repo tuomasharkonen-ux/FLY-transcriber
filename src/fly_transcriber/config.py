@@ -17,9 +17,10 @@ from pathlib import Path
 
 import tomli_w
 
+from .diarization import LOCAL_MODEL_TOKEN, has_local_model
 from .projects import Project
 
-APP_CONFIG_DIR = Path("~/.config/local-meeting-recorder").expanduser()
+APP_CONFIG_DIR = Path("~/.config/fly-transcriber").expanduser()
 SETTINGS_PATH = APP_CONFIG_DIR / "settings.toml"
 TOKEN_PATH = APP_CONFIG_DIR / "hf_token"
 
@@ -121,12 +122,14 @@ def write_hf_token(token: str) -> Path:
 
 
 def has_diarization_token() -> bool:
-    return bool(read_hf_token())
+    return bool(read_hf_token()) or has_local_model()
 
 
 def build_ownscribe_config(settings: Settings) -> dict:
     """Translate app settings into an ownscribe config document."""
-    token = read_hf_token()
+    # A local model needs no token, but ownscribe will not diarize without one,
+    # so it gets a placeholder. A real token is only needed without the model.
+    token = read_hf_token() or (LOCAL_MODEL_TOKEN if has_local_model() else "")
 
     # Diarization silently produces unlabelled output without a token, so only
     # claim it is enabled when one is actually available.

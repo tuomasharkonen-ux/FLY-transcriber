@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 
 from .config import Settings
+from .diarization import MODELS_DIR, has_local_model
 
 # Strips the cursor moves and colour codes ownscribe's live progress display emits.
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07")
@@ -123,6 +124,9 @@ class Recorder:
             # native ownscribe-audio capture helper it spawns.
             start_new_session=True,
             bufsize=0,
+            # Run from the models directory so pyannote finds the local speaker
+            # model by its hub name instead of downloading the gated original.
+            cwd=MODELS_DIR if has_local_model() else None,
         )
         threading.Thread(target=self._pump_output, daemon=True).start()
         self._emit()

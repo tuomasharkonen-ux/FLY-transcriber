@@ -1,4 +1,4 @@
-"""macOS menubar front-end for the local meeting recorder."""
+"""FLY-transcriber: the macOS menubar front-end."""
 
 from __future__ import annotations
 
@@ -13,12 +13,12 @@ from AppKit import NSApplication
 
 from . import config as appconfig
 from .config import Settings, apply_ownscribe_config, load_settings, save_settings
-from .diarization import check_access
+from .diarization import check_diarization
 from .dialogs import ask_list, ask_text
 from .filing import FilingError, file_meeting
 from .meetings import list_meetings, parse_meeting_dir, speaker_samples
 from .projects import DEFAULT_INBOX, create_project, install_agent_files, slugify
-from .recorder import Phase, Recorder, RunState
+from .recorder import Phase, Recorder, RunState, resolve_ownscribe
 from .server import Api, serve_in_background
 from .transcript import render as render_turns
 from . import state as meeting_state
@@ -200,7 +200,7 @@ class MeetingRecorderApp(rumps.App):
         # Diarization failures are silent -- ownscribe exits 0 with an unlabelled
         # transcript -- so verify access before committing to a recording.
         if self.settings.diarize:
-            access = check_access(appconfig.read_hf_token())
+            access = check_diarization(appconfig.read_hf_token())
             if not access.ok:
                 proceed = alert(
                     "Speaker labels unavailable",
@@ -466,7 +466,7 @@ class MeetingRecorderApp(rumps.App):
         meeting = parse_meeting_dir(state.meeting_dir)
         if not meeting.has_transcript or meeting.has_speakers:
             return
-        access = check_access(appconfig.read_hf_token())
+        access = check_diarization(appconfig.read_hf_token())
         detail = (
             access.reason
             if not access.ok
@@ -555,8 +555,8 @@ class MeetingRecorderApp(rumps.App):
     def set_token(self, _sender) -> None:
         token = ask_text(
             "HuggingFace Token",
-            "Paste a HuggingFace read token to enable speaker diarization.\n"
-            "You must also accept the terms for "
+            "Only needed if the installer did not set up the speaker model.\n"
+            "Paste a HuggingFace read token, after accepting the terms for "
             "pyannote/speaker-diarization-community-1.",
         )
         if not token:
@@ -649,6 +649,9 @@ def main() -> None:
     args = sys.argv[1:]
     if args[:1] == ["install-agent"]:
         sys.exit(_install_agent(args[1:]))
+    if args == ["warmup"]:
+        _extend_path()
+        sys.exit(_warmup())
     if args:
         print(USAGE, file=sys.stderr)
         sys.exit(2)
@@ -670,9 +673,26 @@ def _extend_path() -> None:
         os.environ["PATH"] = os.pathsep.join([*current, *missing])
 
 
-USAGE = """usage: meeting-recorder                        start the menubar app
-       meeting-recorder install-agent <folder>  add CLAUDE.md and the agent skill
-                                                to an existing project folder"""
+USAGE = """usage: fly-transcriber                        start the menubar app
+       fly-transcriber install-agent <folder>  add CLAUDE.md and the agent skill
+                                               to an existing project folder
+       fly-transcriber warmup                  download the speech models now,
+                                               not during the first recording"""
+
+
+def _warmup() -> int:
+    """Prefetch the Whisper and alignment models the next recording will use.
+
+    Applies this app's ownscribe config first: ownscribe's own default enables
+    local summarization, and warming up with it would download an LLM this app
+    never runs. Diarization is skipped -- the installer places that model.
+    """
+    settings = load_settings()
+    apply_ownscribe_config(settings)
+    cmd = [*resolve_ownscribe(), "warmup", "--model", settings.model, "--no-diarization"]
+    if settings.language:
+        cmd += ["--language", settings.language]
+    return subprocess.run(cmd, check=False).returncode
 
 
 def _install_agent(args: list[str]) -> int:

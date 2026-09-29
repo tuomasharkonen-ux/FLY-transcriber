@@ -83,7 +83,7 @@ AGENT_INSTRUCTIONS = """\
 ## Meeting inbox
 
 Meeting transcripts land in `{inbox}/`. Each file is one meeting, produced by
-local-meeting-recorder: recorded locally, transcribed with WhisperX (large-v3)
+FLY-transcriber: recorded locally, transcribed with WhisperX (large-v3)
 and diarized with pyannote.
 
 **These are raw transcripts, not notes.** They carry `status: raw` in
@@ -150,7 +150,7 @@ SKILL_RELPATH = Path(".claude") / "skills" / SKILL_NAME / "SKILL.md"
 
 def _bundled_skill() -> str:
     return (
-        resources.files("local_meeting_recorder")
+        resources.files("fly_transcriber")
         .joinpath("skills", SKILL_NAME, "SKILL.md")
         .read_text(encoding="utf-8")
     )

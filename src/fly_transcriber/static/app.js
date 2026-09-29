@@ -599,7 +599,7 @@ const SettingsView = ({ settings, projects, toast }) => {
 
       <div class="card section">
         <h2>Speakers</h2>
-        <${Switch} label="Identify speakers" hint="Diarization with pyannote. Needs a HuggingFace token."
+        <${Switch} label="Identify speakers" hint="Diarization with pyannote, using the speaker model the installer set up."
           checked=${draft.diarize} onChange=${set("diarize")} />
         <div class="grid-2">
           <${Field} label="Speaker count"
@@ -625,7 +625,7 @@ const SettingsView = ({ settings, projects, toast }) => {
       <div class="card section">
         <h2>Projects</h2>
         <p class="subtle">Destinations offered when filing. Edit them in${" "}
-          <code>~/.config/local-meeting-recorder/settings.toml</code>.</p>
+          <code>~/.config/fly-transcriber/settings.toml</code>.</p>
         ${projects.length
           ? html`<ul class="project-list">
               ${projects.map((p) => html`

@@ -35,16 +35,14 @@ things up, while your own agent has the project context and a stronger model.
 - A Mac with Apple Silicon (M1 or later) running **macOS 14.2 or later**
   (needed for system audio capture)
 - [Homebrew](https://brew.sh), used to install `ffmpeg`
-- About **5 GB of disk space** for the speech models, downloaded on first use
-- A free [HuggingFace](https://huggingface.co/join) account for speaker labels
-  (optional, but you get unlabelled transcripts without it)
+- About **5 GB of disk space** for the speech models, downloaded during install
 - An AI coding agent such as [Claude Code](https://claude.com/claude-code) to
   turn transcripts into notes (optional)
 
 ## Install
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/local-meeting-recorder/main/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh
 ```
 
 The script checks your Mac meets the requirements and then:
@@ -53,43 +51,28 @@ The script checks your Mac meets the requirements and then:
    through Homebrew,
 2. installs [ownscribe](https://github.com/paberr/ownscribe) (the recording and
    transcription engine) and this app as `uv` tools,
-3. adds a login item so the app starts with your Mac, and starts it now.
+3. downloads the speaker model (30 MB) and the speech models (about 3 GB), so
+   your first recording starts straight away,
+4. adds a login item so the app starts with your Mac, and starts it now.
 
-Look for **○** in the menubar. The dashboard is at <http://127.0.0.1:8756/>.
+No accounts or tokens are needed. Look for **○** in the menubar. The dashboard
+is at <http://127.0.0.1:8756/>.
 
-To install without the login item, add `-s -- --no-login-item` after `sh`.
-If you'd rather not pipe a script into your shell, install it by hand instead:
+Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 
-```bash
-brew install ffmpeg
-uv tool install --python 3.12 ownscribe
-uv tool install --python 3.12 git+https://github.com/tuomasharkonen-ux/local-meeting-recorder
-meeting-recorder
-```
+- `--no-login-item`: don't start the app at login.
+- `--no-warmup`: skip the 3 GB download for now; it then happens during your
+  first recording.
+
+If you'd rather read the script before running it, download
+[`install.sh`](install.sh) and run `sh install.sh`.
 
 ## First-time setup
 
-### Turn on speaker labels
-
-Speaker detection uses pyannote. The model is free but **gated**, so you need
-to accept its terms once:
-
-1. Sign in at [huggingface.co](https://huggingface.co/join).
-2. Accept the terms at
-   [pyannote/speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
-   Make sure it's this model: many guides point at `speaker-diarization-3.1`,
-   which isn't the one used here.
-3. Create a token with the **read** role at
-   [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
-4. In the menubar, choose **Configure → Set HuggingFace Token…** and paste it.
-
-Without a token the app still records and transcribes. It tells you speaker
-labels are off, rather than quietly producing a transcript without them.
-
 ### Allow audio access
 
-Your first recording asks for **microphone** and **system audio** access. It
-also downloads the speech models once, which takes a few minutes.
+Your first recording asks for **microphone** and **system audio** access.
+Allow both. Without system audio, the other people on a call aren't recorded.
 
 ### Tell it about your vocabulary
 
@@ -127,10 +110,10 @@ To use an **existing** folder, such as an Obsidian vault you already have, add
 the agent files to it:
 
 ```bash
-meeting-recorder install-agent ~/path/to/your/project
+fly-transcriber install-agent ~/path/to/your/project
 ```
 
-Then add it as a destination in `~/.config/local-meeting-recorder/settings.toml`:
+Then add it as a destination in `~/.config/fly-transcriber/settings.toml`:
 
 ```toml
 [[projects]]
@@ -158,7 +141,7 @@ be redone.
 ## Privacy and consent
 
 Everything stays on your Mac: audio, transcripts and the models that produce
-them. The only network traffic is the one-time model download from HuggingFace.
+them. The only network traffic is the model download during install.
 The dashboard listens on `127.0.0.1` only.
 
 **Tell people when you record.** In many places, including the EU, you need
@@ -168,11 +151,12 @@ participants' consent to record a meeting. It's your responsibility to ask.
 
 | File | What it is |
 |---|---|
-| `~/.config/local-meeting-recorder/settings.toml` | App settings, also editable in the dashboard |
-| `~/.config/local-meeting-recorder/hf_token` | Your HuggingFace token (owner-only permissions) |
-| `~/.config/local-meeting-recorder/state.json` | What was filed where, plus the titles and names you typed |
+| `~/.config/fly-transcriber/settings.toml` | App settings, also editable in the dashboard |
+| `~/.config/fly-transcriber/hf_token` | Optional HuggingFace token, only needed without the bundled speaker model |
+| `~/.config/fly-transcriber/state.json` | What was filed where, plus the titles and names you typed |
 | `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand |
 | `~/ownscribe/` | Recordings and original transcripts |
+| `~/.local/share/fly-transcriber/models/` | The speaker model |
 
 Useful settings:
 
@@ -187,12 +171,13 @@ After editing `settings.toml` by hand, use **Configure → Reload Settings**.
 ## Uninstall
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/local-meeting-recorder/main/install.sh | sh -s -- --uninstall
+curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh -s -- --uninstall
 ```
 
-This removes the app, ownscribe and the login item. Your settings and
-recordings are kept; delete `~/.config/local-meeting-recorder` and
-`~/ownscribe` yourself if you want them gone.
+This removes the app, ownscribe, the speaker model and the login item. Your
+settings, recordings and the speech models are kept; delete
+`~/.config/fly-transcriber`, `~/ownscribe` and `~/.cache/huggingface` yourself
+if you want them gone.
 
 ## Known limitations
 
@@ -215,11 +200,21 @@ on it:
   gives a whole segment to one speaker, which hides turn changes inside it,
   while the JSON keeps a speaker for every word. Segments are split where the
   word-level speaker changes, and single-word flips are ignored as noise.
-- **Access to the speaker model is checked before recording.** When pyannote
-  can't be reached, ownscribe still exits successfully with an unlabelled
-  transcript. The app therefore checks the gated model up front, with a `HEAD`
-  on a model file, because the metadata API reports success even when access
-  hasn't been granted.
+- **The speaker model is installed locally, so no account is needed.**
+  `pyannote/speaker-diarization-community-1` is gated on HuggingFace, but it's
+  CC-BY-4.0 and its gate is auto-approved. The installer downloads a copy from
+  this repo's releases into `~/.local/share/fly-transcriber/models/`. pyannote
+  treats a model name that exists as a folder as a local model *before* it
+  contacts the hub, and resolves it against the working directory, so the app
+  runs ownscribe from that folder. ownscribe won't diarize without a token, so
+  it gets a placeholder that is never sent anywhere. The installer pins
+  ownscribe to the version this was tested with. The copy is packaged by
+  `scripts/package_speaker_model.sh`.
+- **Speaker labels are checked before recording.** When pyannote can't load
+  its model, ownscribe still exits successfully with an unlabelled transcript.
+  So without a local model, the app checks the gated model up front with a
+  `HEAD` on a model file (the metadata API reports success even when access
+  hasn't been granted).
 - **Summaries were tried and removed.** The local model (`phi-4-mini`) invented
   a decision nobody made and drifted from Finnish into English partway through.
 - **Text prompts use `osascript`.** As a menubar-only app, the app can't give
@@ -229,9 +224,9 @@ on it:
 ## Development
 
 ```bash
-git clone https://github.com/tuomasharkonen-ux/local-meeting-recorder
-cd local-meeting-recorder
-uv run meeting-recorder                     # run from source
+git clone https://github.com/tuomasharkonen-ux/FLY-transcriber
+cd FLY-transcriber
+uv run fly-transcriber                      # run from source
 uv run pytest                               # tests
 uv run python scripts/dashboard_preview.py  # dashboard with fake data on :8757
 ```
@@ -248,7 +243,14 @@ Built on [ownscribe](https://github.com/paberr/ownscribe),
 [pyannote.audio](https://github.com/pyannote/pyannote-audio) and
 [rumps](https://github.com/jaredks/rumps). The dashboard bundles
 [Preact](https://preactjs.com) (MIT) and [htm](https://github.com/developit/htm)
-(Apache-2.0); their licences are in `src/local_meeting_recorder/static/vendor/`.
+(Apache-2.0); their licences are in `src/fly_transcriber/static/vendor/`.
+
+The installer downloads pyannote's
+[speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)
+model, redistributed unmodified under
+[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). Credit for it goes
+to [pyannote](https://github.com/pyannote/pyannote-audio). If you use it outside
+this app, please get it from the source.
 
 ## License
 

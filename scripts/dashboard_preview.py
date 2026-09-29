@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from local_meeting_recorder.server import Api, make_server
+from fly_transcriber.server import Api, make_server
 
 PORT = 8757
 

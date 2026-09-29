@@ -109,7 +109,7 @@ def render(
 
     if project.frontmatter == "obsidian":
         lines += [
-            "> Transcript from local-meeting-recorder: WhisperX (large-v3) with "
+            "> Transcript from FLY-transcriber: WhisperX (large-v3) with "
             "pyannote diarization, not reviewed by a human. Speech recognition "
             "errors are likely in names and jargon. Write the notes from this, "
             "then remove this file.",

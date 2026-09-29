@@ -1,5 +1,5 @@
 [project]
-name = "local-meeting-recorder"
+name = "fly-transcriber"
 version = "0.1.0"
 description = "Local, private meeting recorder for macOS: speaker-labelled transcripts filed into your projects for your AI agent."
 readme = "README.md"
@@ -21,10 +21,10 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/tuomasharkonen-ux/local-meeting-recorder"
+Repository = "https://github.com/tuomasharkonen-ux/FLY-transcriber"
 
 [project.scripts]
-meeting-recorder = "local_meeting_recorder.app:main"
+fly-transcriber = "fly_transcriber.app:main"
 
 [build-system]
 requires = ["uv_build>=0.11.16,<0.12.0"]

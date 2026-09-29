@@ -12,15 +12,23 @@ from pathlib import Path
 
 import pytest
 
-from local_meeting_recorder import config as appconfig
-from local_meeting_recorder import state as meeting_state
-from local_meeting_recorder.server import Api, make_server
-from local_meeting_recorder.config import Settings, build_ownscribe_config
-from local_meeting_recorder.diarization import DIARIZATION_REPO, check_access
-from local_meeting_recorder.dialogs import ask_list, ask_text
-from local_meeting_recorder.filing import ATTRIBUTION_NOTE, FilingError, file_meeting
-from local_meeting_recorder.transcript import Turn, load_turns, render
-from local_meeting_recorder.projects import (
+from fly_transcriber import config as appconfig
+from fly_transcriber import diarization
+from fly_transcriber import state as meeting_state
+from fly_transcriber.server import Api, make_server
+from fly_transcriber.config import Settings, build_ownscribe_config
+from fly_transcriber.diarization import (
+    DIARIZATION_REPO,
+    LOCAL_MODEL_TOKEN,
+    MODEL_FILES,
+    check_access,
+    check_diarization,
+    has_local_model,
+)
+from fly_transcriber.dialogs import ask_list, ask_text
+from fly_transcriber.filing import ATTRIBUTION_NOTE, FilingError, file_meeting
+from fly_transcriber.transcript import Turn, load_turns, render
+from fly_transcriber.projects import (
     Project,
     SKILL_NAME,
     SKILL_RELPATH,
@@ -29,12 +37,12 @@ from local_meeting_recorder.projects import (
     filename_for,
     slugify,
 )
-from local_meeting_recorder.meetings import (
+from fly_transcriber.meetings import (
     list_meetings,
     parse_meeting_dir,
     speaker_samples,
 )
-from local_meeting_recorder.recorder import Phase, Recorder, RunState
+from fly_transcriber.recorder import Phase, Recorder, RunState
 
 SUMMARY = textwrap.dedent(
     """\
@@ -97,6 +105,19 @@ def make_meeting(tmp_path, name="2026-09-28_1420_test-accounts", *, transcript, 
     return d
 
 
+@pytest.fixture(autouse=True)
+def no_local_model(tmp_path_factory, monkeypatch):
+    """Keep a speaker model installed on this machine from leaking into tests."""
+    monkeypatch.setattr(diarization, "MODELS_DIR", tmp_path_factory.mktemp("models"))
+
+
+def install_fake_model(models_dir: Path) -> None:
+    base = models_dir / DIARIZATION_REPO
+    for name in MODEL_FILES:
+        (base / name).parent.mkdir(parents=True, exist_ok=True)
+        (base / name).write_bytes(b"x")
+
+
 # -- ownscribe config generation ---------------------------------------------
 
 
@@ -112,6 +133,44 @@ def test_diarization_on_with_token(monkeypatch):
     doc = build_ownscribe_config(Settings(diarize=True))
     assert doc["diarization"]["enabled"] is True
     assert doc["diarization"]["hf_token"] == "hf_dummy"
+
+
+def test_local_model_enables_diarization_without_token(monkeypatch):
+    """ownscribe skips diarization without a token, so a placeholder stands in."""
+    monkeypatch.setattr(appconfig, "read_hf_token", lambda: "")
+    install_fake_model(diarization.MODELS_DIR)
+    doc = build_ownscribe_config(Settings(diarize=True))
+    assert doc["diarization"]["enabled"] is True
+    assert doc["diarization"]["hf_token"] == LOCAL_MODEL_TOKEN
+
+
+def test_real_token_wins_over_placeholder(monkeypatch):
+    monkeypatch.setattr(appconfig, "read_hf_token", lambda: "hf_dummy")
+    install_fake_model(diarization.MODELS_DIR)
+    assert build_ownscribe_config(Settings(diarize=True))["diarization"]["hf_token"] == "hf_dummy"
+
+
+def test_local_model_needs_every_file(tmp_path):
+    assert not has_local_model(tmp_path)
+    install_fake_model(tmp_path)
+    assert has_local_model(tmp_path)
+    (tmp_path / DIARIZATION_REPO / "plda" / "plda.npz").unlink()
+    assert not has_local_model(tmp_path)
+
+
+def test_check_diarization_accepts_local_model_without_network(tmp_path, monkeypatch):
+    def no_network(*a, **k):
+        raise AssertionError("must not touch the network")
+
+    monkeypatch.setattr(urllib.request, "urlopen", no_network)
+    install_fake_model(tmp_path)
+    assert check_diarization("", tmp_path).ok
+
+
+def test_check_diarization_without_model_or_token(tmp_path):
+    result = check_diarization("", tmp_path)
+    assert not result.ok
+    assert "installer" in result.reason
 
 
 def test_config_wires_model_and_disables_summarization(monkeypatch):

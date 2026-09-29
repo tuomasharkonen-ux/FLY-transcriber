@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-STATE_PATH = Path("~/.config/local-meeting-recorder/state.json").expanduser()
+STATE_PATH = Path("~/.config/fly-transcriber/state.json").expanduser()
 
 _lock = threading.Lock()
 
