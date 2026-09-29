@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Exported meeting notes contain meeting content — never commit them.
+notes/
+# HuggingFace token, if ever placed in-tree.
+hf_token
+
+# macOS
+.DS_Store

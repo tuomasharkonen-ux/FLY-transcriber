@@ -1,0 +1,36 @@
+[project]
+name = "local-meeting-recorder"
+version = "0.1.0"
+description = "Local, private meeting recorder for macOS: speaker-labelled transcripts filed into your projects for your AI agent."
+readme = "README.md"
+authors = [
+    { name = "Tuomas Härkönen", email = "252577503+tuomasharkonen-ux@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["meeting", "transcription", "diarization", "whisper", "macos", "menubar"]
+classifiers = [
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "rumps>=0.4.0",
+    "tomli-w>=1.2.0",
+]
+
+[project.urls]
+Repository = "https://github.com/tuomasharkonen-ux/local-meeting-recorder"
+
+[project.scripts]
+meeting-recorder = "local_meeting_recorder.app:main"
+
+[build-system]
+requires = ["uv_build>=0.11.16,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
