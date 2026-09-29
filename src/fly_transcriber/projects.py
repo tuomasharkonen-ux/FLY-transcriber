@@ -110,7 +110,7 @@ have the better model and the project context.
   A garbled phrase is sometimes rendered as plausible-sounding nonsense rather
   than as obvious noise. When something reads oddly, treat it as suspect.
 - **`speakers:`** are anonymous labels (`SPEAKER_00`) unless they were mapped
-  to real names at filing time.
+  to real names at saving time.
 - **`participants:`** is a roster typed by hand when the recording stopped. It
   is not linked to the speaker labels and may be incomplete.
 - **Speaker counts are auto-detected** and can be wrong -- both merging two
@@ -120,7 +120,7 @@ have the better model and the project context.
 
 Diarization tells speakers apart by voice only, and some lines are attributed
 to the wrong person -- between people sharing a microphone in the room, but
-also between them and remote participants. Speaker names mapped at filing are
+also between them and remote participants. Speaker names mapped at saving are
 applied to every line the label covers, so a swapped line carries a real name
 and looks trustworthy.
 

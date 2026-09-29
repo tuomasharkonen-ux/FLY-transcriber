@@ -21,7 +21,7 @@ and…"), and say so in the attribution review.
 
 Speaker labels come from voice alone. Some lines are attributed to the wrong person,
 between people in the same room and between them and remote participants. Names were
-mapped to labels at filing, so a misattributed line carries a real name and looks right.
+mapped to labels at saving, so a misattributed line carries a real name and looks right.
 
 Read the whole transcript once before writing anything. Then, for every line that will
 end up in the note as a decision, action item, commitment or clearly held opinion,

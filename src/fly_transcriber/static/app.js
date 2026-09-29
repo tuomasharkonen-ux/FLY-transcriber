@@ -100,7 +100,7 @@ const RecordingRow = ({ meeting, onFile, toast }) => {
       <div class="row-actions">
         ${canAct && html`
           <${Button} size="sm" variant=${meeting.filed.length ? "secondary" : "primary"} icon="send"
-            onClick=${stop(() => onFile(meeting))}>File<//>
+            onClick=${stop(() => onFile(meeting))}>Save<//>
           <${IconButton} icon="copy" label="Copy transcript"
             onClick=${stop(() => copyTranscript(meeting, toast))} />`}
         <${IconButton} icon="chevron" label="Open" onClick=${stop(open)} />
@@ -117,7 +117,7 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
           <h1>Recordings</h1>
           <p class="subtle">
             ${meetings.length
-              ? unfiled ? `${unfiled} waiting to be filed` : "Everything is filed"
+              ? unfiled ? `${unfiled} waiting to be saved` : "Everything is saved"
               : "Start a recording from the FLY icon in the menubar"}
           </p>
         </div>
@@ -206,7 +206,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
           ${canAct && html`
             <${Button} icon="copy" onClick=${() => copyTranscript(meeting, toast)}>Copy<//>
             <${Button} variant="primary" icon="send" onClick=${() => onFile(meeting)}>
-              ${meeting.filed.length ? "File again" : "File"}
+              ${meeting.filed.length ? "Save again" : "Save"}
             <//>`}
         </div>
       </div>
@@ -241,7 +241,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
               <p>${meeting.state.participants.join(", ")}</p>`}
           </div>
           <div class="card">
-            <h3>Filed to</h3>
+            <h3>Saved to</h3>
             ${meeting.filed.length
               ? html`<ul class="filed-list">
                   ${meeting.filed.map((f) => html`
@@ -250,7 +250,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
                       <code title=${f.path}>${f.path.split("/").pop()}</code>
                     </li>`)}
                 </ul>`
-              : html`<p class="subtle">Not filed yet.</p>`}
+              : html`<p class="subtle">Not saved yet.</p>`}
             <h3>Files</h3>
             <p class="subtle">${meeting.has_audio ? "Audio kept" : "Audio discarded"} · <code>${meeting.name}</code></p>
           </div>
@@ -264,7 +264,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
 const FileDialog = ({ meeting, projects, onClose, toast }) => {
   const ref = useRef();
   const form = useFilingForm(meeting, projects, {
-    onFiled: (project) => { toast(`Filed to ${project}`); onClose(); },
+    onFiled: (project) => { toast(`Saved to ${project}`); onClose(); },
     onSkipped: () => { toast("Skipped — it won't count as waiting"); ref.current.close(); },
   });
 
@@ -279,7 +279,7 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
       <form method="dialog" class="dialog-body" onSubmit=${form.submit}>
         <div class="dialog-head">
           <div>
-            <h2>File recording</h2>
+            <h2>Save recording</h2>
             <p class="subtle">${meeting.when}${meeting.duration ? ` · ${fmtDuration(meeting.duration)}` : ""}</p>
           </div>
           <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
@@ -290,10 +290,10 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
         <div class="dialog-foot">
           ${awaitsFiling(meeting) && html`
             <${Button} variant="ghost" class="foot-start" onClick=${form.skip}
-              title="Stop counting this one as waiting to be filed">Don't file<//>`}
+              title="Stop counting this one as waiting to be saved">Don't save<//>`}
           <${Button} onClick=${() => ref.current.close()}>Cancel<//>
           <button type="submit" class="btn btn-primary" disabled=${form.busy || !projects.length}>
-            ${form.busy ? "Filing…" : `File to ${form.project || "…"}`}
+            ${form.busy ? "Saving…" : `Save to ${form.project || "…"}`}
           </button>
         </div>
       </form>
@@ -392,7 +392,7 @@ const SettingsView = ({ settings, projects, toast }) => {
 
       <div class="card section">
         <h2>Projects</h2>
-        <p class="subtle">Destinations offered when filing. Edit them in${" "}
+        <p class="subtle">Destinations offered when saving. Edit them in${" "}
           <code>~/.config/fly-transcriber/settings.toml</code>.</p>
         ${projects.length
           ? html`<ul class="project-list">

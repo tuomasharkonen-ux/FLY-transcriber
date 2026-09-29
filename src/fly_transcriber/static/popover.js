@@ -50,14 +50,14 @@ const Row = ({ meeting, onFile }) => {
   return html`
     <li>
       <button type="button" class="prow" disabled=${!action} onClick=${action}
-        title=${waiting ? "File this recording" : action ? "Open transcript" : ""}>
+        title=${waiting ? "Save this recording" : action ? "Open transcript" : ""}>
         <span class="prow-main">
           <span class="prow-title">${meeting.title || "Untitled recording"}</span>
           <span class="prow-meta">
             ${meta}${projects.length > 0 && html`<span class="prow-filed"> → ${projects.join(", ")}</span>`}
           </span>
         </span>
-        <${Pill} tone=${st.tone}>${waiting ? "File" : st.label}<//>
+        <${Pill} tone=${st.tone}>${waiting ? "Save" : st.label}<//>
         ${action && html`<span class="prow-chevron"><${Icon} name="chevron" size=${14} /></span>`}
       </button>
     </li>`;
@@ -81,7 +81,7 @@ const ListView = ({ state, run, onFile, onToggle }) => {
     <section>
       <div class="psection">
         <h3>Recent</h3>
-        ${waiting > 0 && html`<span class="psection-aside">${waiting} to file</span>`}
+        ${waiting > 0 && html`<span class="psection-aside">${waiting} to save</span>`}
       </div>
       ${meetings.length
         ? html`<ul class="plist">${meetings.map((m) => html`<${Row} key=${m.name} meeting=${m} onFile=${onFile} />`)}</ul>`
@@ -97,7 +97,7 @@ const ListView = ({ state, run, onFile, onToggle }) => {
 
 const FilingView = ({ meeting, projects, onDone, toast }) => {
   const form = useFilingForm(meeting, projects, {
-    onFiled: (project) => { toast(`Filed to ${project}`); onDone(); },
+    onFiled: (project) => { toast(`Saved to ${project}`); onDone(); },
     onSkipped: () => { toast("Skipped"); onDone(); },
   });
   const ref = useRef();
@@ -111,7 +111,7 @@ const FilingView = ({ meeting, projects, onDone, toast }) => {
         </button>
       </header>
       <div>
-        <h2>File recording</h2>
+        <h2>Save recording</h2>
         <p class="subtle">${[meeting.when, meeting.duration && fmtDuration(meeting.duration)].filter(Boolean).join(" · ")}</p>
       </div>
 
@@ -119,9 +119,9 @@ const FilingView = ({ meeting, projects, onDone, toast }) => {
 
       <footer class="pfoot">
         <${Button} variant="ghost" size="sm" onClick=${form.skip}
-          title="Stop counting this one as waiting to be filed">Don't file<//>
+          title="Stop counting this one as waiting to be saved">Don't save<//>
         <button type="submit" class="btn btn-primary btn-sm" disabled=${form.busy || !projects.length}>
-          ${form.busy ? "Filing…" : `File to ${form.project || "…"}`}
+          ${form.busy ? "Saving…" : `Save to ${form.project || "…"}`}
         </button>
       </footer>
     </form>`;

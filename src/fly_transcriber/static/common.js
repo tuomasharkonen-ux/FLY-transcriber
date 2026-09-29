@@ -60,12 +60,12 @@ export function initials(name) {
 export function status(meeting) {
   if (meeting.processing) return { tone: "busy", label: "Processing" };
   if (!meeting.has_transcript) return { tone: "muted", label: "No transcript" };
-  if (meeting.filed.length) return { tone: "ok", label: "Filed" };
+  if (meeting.filed.length) return { tone: "ok", label: "Saved" };
   if (meeting.state.dismissed) return { tone: "muted", label: "Skipped" };
-  return { tone: "warn", label: "Not filed" };
+  return { tone: "warn", label: "Not saved" };
 }
 
-/** Matches the menubar's "Ready to file (n)" count. */
+/** Matches the menubar's "Ready to save (n)" count. */
 export const awaitsFiling = (m) =>
   m.has_transcript && !m.processing && !m.filed.length && !m.state.dismissed;
 
@@ -232,7 +232,7 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
 
 export const FilingFields = ({ form, meeting, projects }) => html`
   <div class="stack">
-    <${Field} label="Title" hint="Names the filed note.">
+    <${Field} label="Title" hint="Names the saved note.">
       <input class="input" value=${form.title} placeholder="Weekly sync"
         onInput=${(e) => form.setTitle(e.currentTarget.value)} />
     <//>
@@ -255,7 +255,7 @@ export const FilingFields = ({ form, meeting, projects }) => html`
               </div>
             </div>`)}
         </div>
-        <span class="field-hint">Names apply to the filed copy only.</span>
+        <span class="field-hint">Names apply to the saved copy only.</span>
       </div>`}
 
     <${Field} label="Destination">

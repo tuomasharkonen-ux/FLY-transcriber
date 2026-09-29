@@ -6,7 +6,7 @@ project folder to write the notes. Recording, transcription and speaker
 detection all run locally on your Mac; no audio or text is sent anywhere.
 
 <p align="center">
-  <img src="docs/demo.gif" width="470" alt="The FLY menubar panel: start and stop a recording, wait for processing, then name the speakers and file the transcript into a project">
+  <img src="docs/demo.gif" width="470" alt="The FLY menubar panel: start and stop a recording, wait for processing, then name the speakers and save the transcript into a project">
 </p>
 
 ```
@@ -20,14 +20,14 @@ A short animated walkthrough is in [`docs/how-it-works.html`](docs/how-it-works.
 ## What you get
 
 - **A menubar recorder.** Click the FLY icon for a small panel: start and stop
-  a recording, see your latest recordings and their status, and file the ones
+  a recording, see your latest recordings and their status, and save the ones
   that are waiting. It captures your microphone and system audio, so remote
   participants are included.
 - **Local transcription** with Whisper `large-v3`. This is accurate even for
   languages that smaller models get wrong, such as Finnish.
 - **Speaker labels** from pyannote. You give each speaker a real name before
-  filing.
-- **Filing into projects.** Each transcript lands in a folder your agent works
+  saving.
+- **Saving into projects.** Each transcript lands in a folder your agent works
   in, such as an Obsidian vault or a repo, marked `status: raw`.
 - **An agent skill** that turns the raw transcript into a proper note. It checks
   who said what from context, writes in the meeting's language, fixes misheard
@@ -94,12 +94,12 @@ when a recording starts, so add them before the meeting. You can also pin the
    timer.
 2. **Stop recording** when the meeting ends. Processing starts on its own; the
    icon becomes a waveform and the panel shows progress.
-3. When it's done, the icon shows how many recordings are waiting to be filed.
-   Open the panel and click the one marked **File**. Add a title and
+3. When it's done, the icon shows how many recordings are waiting to be saved.
+   Open the panel and click the one marked **Save**. Add a title and
    participants, name each speaker (each one is shown with their first line so
-   you can tell them apart), pick a project, and file.
+   you can tell them apart), pick a project, and save.
 
-Clicking a filed recording opens its transcript in the FLY window. Right-click
+Clicking a saved recording opens its transcript in the FLY window. Right-click
 the icon for the rest: New Project, the recordings folder, advanced settings
 and Quit.
 4. Ask your agent to process the inbox. The skill turns the transcript into a
@@ -110,7 +110,7 @@ meeting takes around 50 minutes, plus speaker detection.
 
 ### Projects
 
-A project is a folder where transcripts are filed. **New Project…** (right-click
+A project is a folder where transcripts are saved. **New Project…** (right-click
 the menubar icon)
 creates `~/<name>/meetings/_inbox/` and writes two files at the project root:
 
@@ -146,7 +146,7 @@ Labels come from voice alone, so treat them as a strong hint rather than a
 fact. Short replies ("Yeah.", "Right.") and two people sharing one laptop mic
 are the usual sources of mistakes. That's why the agent skill checks every
 decision and action item against the text before naming anyone, and lists
-every change it made. Speaker names are applied only to the filed copy; the
+every change it made. Speaker names are applied only to the saved copy; the
 original transcript keeps its anonymous labels, so a wrong mapping can always
 be redone.
 
@@ -165,7 +165,7 @@ participants' consent to record a meeting. It's your responsibility to ask.
 |---|---|
 | `~/.config/fly-transcriber/settings.toml` | App settings, also editable in Settings |
 | `~/.config/fly-transcriber/hf_token` | Optional HuggingFace token, only needed without the bundled speaker model |
-| `~/.config/fly-transcriber/state.json` | What was filed where, plus the titles and names you typed |
+| `~/.config/fly-transcriber/state.json` | What was saved where, plus the titles and names you typed |
 | `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand |
 | `~/ownscribe/` | Recordings and original transcripts |
 | `~/.local/share/fly-transcriber/models/` | The speaker model |
@@ -196,7 +196,7 @@ if you want them gone.
 
 - **Apple Silicon and macOS 14.2+ only**, because system audio capture relies
   on Core Audio taps.
-- **Meetings are named by hand** at filing. An unnamed meeting is filed as
+- **Meetings are named by hand** at saving. An unnamed meeting is saved as
   `28-09-26-meeting-1420.md`.
 - **No macOS notifications** unless the app runs as a signed bundle. The
   menubar icon is the status indicator.

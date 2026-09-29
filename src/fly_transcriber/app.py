@@ -168,7 +168,7 @@ class MeetingRecorderApp:
             self.shell.set_status("failed", "", f"Failed: {state.error}")
         elif self._awaiting:
             n = self._awaiting
-            self.shell.set_status("idle", str(n), f"{n} recording{'s' if n > 1 else ''} to file")
+            self.shell.set_status("idle", str(n), f"{n} recording{'s' if n > 1 else ''} to save")
         else:
             self.shell.set_status("idle", "", "FLY")
 
