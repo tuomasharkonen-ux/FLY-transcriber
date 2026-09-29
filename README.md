@@ -1,5 +1,10 @@
 # FLY — Faithful Logger of Yapping
 
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)
+![macOS 14.2+](https://img.shields.io/badge/macOS-14.2+-lightgrey)
+![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-lightgrey)
+
 **Private meeting transcripts for macOS.** Record a meeting from the menubar and
 get a transcript that says *who said what*, then hand it to the AI agent in your
 project folder to write the notes. Recording, transcription and speaker
