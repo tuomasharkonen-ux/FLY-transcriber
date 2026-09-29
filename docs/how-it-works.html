@@ -288,6 +288,16 @@
   .doc.note .sec { font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--teal-hi); margin: 12px 0 6px; }
   .doc.note p { font-size: 19px; margin-bottom: 4px; }
 
+  /* ---------- 9: install ---------- */
+  .cmd { margin-top: 30px; padding: 22px 26px; border-radius: 18px; background: var(--bg-2); border: 1px solid var(--green);
+    font: 16.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); white-space: pre; }
+  .cmd .pr { color: var(--green-hi); user-select: none; }
+  .cmd-note { margin-top: 14px; font-size: 19px; color: var(--text-2); }
+  .reqs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin-top: 36px; }
+  .req { display: flex; align-items: center; gap: 16px; font-size: 21px; }
+  .req .em { font-size: 30px; width: 40px; text-align: center; flex: none; }
+  .req span { color: var(--text-2); }
+
   /* ---------- chrome ---------- */
   #progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--green-hi);
     transition: width .5s ease; }
@@ -519,6 +529,21 @@
           <p class="a" style="--d:2.6s">☐ Sara: write the release notes</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="kicker a">Get started</div>
+    <h2 class="a" style="--d:.1s">Install in one line</h2>
+    <div class="cmd a" style="--d:.3s"><span class="pr">$ </span>curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh \
+    | sh</div>
+    <p class="cmd-note a" style="--d:.5s">Installs the app and the speech models, and adds a login item. No accounts or tokens.</p>
+    <div class="reqs">
+      <div class="req a" style="--d:.8s"><span class="em">🍎</span><div>Apple Silicon Mac <span>· macOS 14.2+</span></div></div>
+      <div class="req a" style="--d:.95s"><span class="em">🍺</span><div>Homebrew <span>· for ffmpeg</span></div></div>
+      <div class="req a" style="--d:1.1s"><span class="em">💾</span><div>About 5 GB <span>· for the speech models</span></div></div>
+      <div class="req a" style="--d:1.25s"><span class="em">🤖</span><div>An AI agent <span>· such as Claude Code, optional</span></div></div>
     </div>
   </section>
 

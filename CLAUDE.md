@@ -12,6 +12,7 @@ uv run python scripts/dashboard_preview.py   # UI on :8757 ($PORT) with fake dat
 uv run fly-transcriber install-agent <dir>   # write CLAUDE.md + the agent skill into an existing project folder
 uv run fly-transcriber warmup                # apply ownscribe config, prefetch Whisper models (installer runs this)
 sh scripts/package_speaker_model.sh          # build dist/speaker-diarization-community-1.tar.gz from your HF cache
+uv run --with playwright python scripts/make_demo_gif.py  # re-render docs/demo.gif from the popover UI (Chrome + ffmpeg)
 sh -n install.sh                             # syntax-check the installer (it installs for real; don't run it casually)
 ```
 
@@ -52,5 +53,5 @@ Tested logic lives in the non-UI modules; `app.py` and `shell.py` have no tests.
 
 - Repo `tuomasharkonen-ux/FLY-transcriber` is **private**; history was squashed to one public-ready commit. Going public is the goal. The `curl … | sh` one-liner and the model download only work for others once it's public.
 - **On hold until the owner says go:** creating the `speaker-model-v1` GitHub release with `dist/speaker-diarization-community-1.tar.gz` (command in `scripts/package_speaker_model.sh`). Until it exists the installer's model step 404s and warns.
-- Open follow-ups: make the repo public; send ownscribe a PR adding a `diarization.model` setting (local path, no token required) so the cwd trick can go; a README demo GIF (deferred while the UI/UX is still being tuned); a real end-to-end `install.sh` run on a clean Mac (not yet done — watch whether audio permission prompts appear when started as a login item).
-- `docs/how-it-works.html` is an animated slide deck explaining the product; keep it in step with the README when behaviour changes.
+- Open follow-ups: make the repo public; send ownscribe a PR adding a `diarization.model` setting (local path, no token required) so the cwd trick can go; a real end-to-end `install.sh` run on a clean Mac (not yet done — watch whether audio permission prompts appear when started as a login item).
+- `docs/how-it-works.html` is an animated slide deck explaining the product; keep it in step with the README when behaviour changes. `docs/demo.gif` is rendered from the real popover UI by `scripts/make_demo_gif.py` driving the scripted story in `scripts/readme_demo.js` (fake API, stand-in desktop); re-render it when the popover changes.

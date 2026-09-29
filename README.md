@@ -5,6 +5,10 @@ get a transcript that says *who said what*, then hand it to the AI agent in your
 project folder to write the notes. Recording, transcription and speaker
 detection all run locally on your Mac; no audio or text is sent anywhere.
 
+<p align="center">
+  <img src="docs/demo.gif" width="470" alt="The FLY menubar panel: start and stop a recording, wait for processing, then name the speakers and file the transcript into a project">
+</p>
+
 ```
 🎙️ Record  →  📝 Transcribe  →  👥 Label speakers  →  🏷️ Name them  →  🤝 Hand over to your agent
             Whisper large-v3     pyannote                              meeting-inbox-to-note skill
@@ -241,6 +245,7 @@ cd FLY-transcriber
 uv run fly-transcriber                      # run from source
 uv run pytest                               # tests
 uv run python scripts/dashboard_preview.py  # UI with fake data on :8757 (panel: /popover.html)
+uv run --with playwright python scripts/make_demo_gif.py  # re-render docs/demo.gif (needs Chrome)
 ```
 
 The UI is Preact + htm, vendored in `static/vendor/`, with no build step
