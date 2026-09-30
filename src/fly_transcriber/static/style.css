@@ -492,6 +492,7 @@ select.input {
 .footer-name { color: var(--text); font-size: 15px; font-weight: 750; letter-spacing: 0.08em; }
 .footer-expansion { display: flex; gap: 0.3em; font-size: 13px; }
 .footer-expansion strong { color: var(--text-2); font-weight: 650; }
+.footer-version { margin-top: 6px; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 .footer-expansion .filler { font-style: italic; }
 
 /* -- narrow windows -------------------------------------------------------- */

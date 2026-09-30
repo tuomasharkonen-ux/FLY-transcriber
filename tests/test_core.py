@@ -1080,7 +1080,10 @@ def test_server_toggles_recording():
     api.record = record
     base, server = _client(api)
     try:
-        req = urllib.request.Request(base + "/api/record", data=b"{}", method="POST")
+        req = urllib.request.Request(
+            base + "/api/record", data=b"{}", method="POST",
+            headers={"Content-Type": "application/json"},
+        )
         assert json.loads(urllib.request.urlopen(req).read()) == {"ok": True}
         assert calls["record"] == 1
     finally:
@@ -1309,5 +1312,51 @@ def test_delete_route_reaches_the_api():
         )
         assert json.loads(urllib.request.urlopen(req).read()) == {"ok": True}
         assert deleted == ["2026-09-28_0900"]
+    finally:
+        server.shutdown()
+
+
+def _status(req) -> int:
+    try:
+        return urllib.request.urlopen(req).status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+
+
+def test_server_refuses_requests_from_other_sites():
+    calls = []
+    api, _ = _stub_api(delete=lambda n: calls.append(n) or {"ok": True})
+    base, server = _client(api)
+    post = lambda headers: urllib.request.Request(  # noqa: E731
+        base + "/api/delete", data=b'{"meeting": "m"}', method="POST", headers=headers
+    )
+    try:
+        # A web page's "simple" cross-site POST: no preflight, any content type.
+        assert _status(post({"Content-Type": "text/plain", "Origin": "https://evil.example"})) == 403
+        # Even with a JSON body, a foreign Origin is refused.
+        assert _status(post({"Content-Type": "application/json", "Origin": "https://evil.example"})) == 403
+        # Not JSON at all.
+        assert _status(post({"Content-Type": "text/plain"})) == 403
+        assert _status(post({})) == 403
+        assert calls == []
+        # The app's own pages still work, with or without an Origin header.
+        ok = {"Content-Type": "application/json"}
+        assert _status(post(ok)) == 200
+        assert _status(post({**ok, "Origin": base})) == 200
+        assert calls == ["m", "m"]
+    finally:
+        server.shutdown()
+
+
+def test_server_refuses_foreign_host_names():
+    """DNS rebinding: a page under evil.example that resolves to 127.0.0.1."""
+    api, _ = _stub_api()
+    base, server = _client(api)
+    try:
+        for path in ("/api/state", "/", "/style.css"):
+            req = urllib.request.Request(base + path, headers={"Host": "evil.example"})
+            assert _status(req) == 403
+        localhost = f"localhost:{server.server_address[1]}"
+        assert _status(urllib.request.Request(base + "/api/state", headers={"Host": localhost})) == 200
     finally:
         server.shutdown()

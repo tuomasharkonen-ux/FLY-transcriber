@@ -77,6 +77,11 @@ Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 - `--no-login-item`: don't start the app at login.
 - `--no-warmup`: skip the 3 GB download for now; it then happens during your
   first recording.
+- `FLY_VERSION=v0.2.0` (an environment variable, set before `sh`): install that
+  release instead of the latest one.
+
+The installer installs the newest [release](https://github.com/tuomasharkonen-ux/FLY-transcriber/releases),
+not whatever is on `main`.
 
 If you'd rather read the script before running it, download
 [`install.sh`](install.sh) and run `sh install.sh`.
@@ -194,6 +199,14 @@ After editing `settings.toml` by hand, use **Advanced → Reload Settings** in t
 right-click menu.
 `$HF_TOKEN` overrides the token file if set.
 
+## Update
+
+Run the install command again. It quits FLY if it's running (it refuses while a
+meeting is being recorded or processed, so nothing is lost), installs the latest
+release and starts FLY again. Your settings, recordings and saved state stay.
+The version is shown at the bottom of the dashboard, and
+`fly-transcriber --version` prints it.
+
 ## Uninstall
 
 ```bash
@@ -266,6 +279,25 @@ uv run --with playwright python scripts/make_demo_gif.py  # re-render docs/demo.
 The UI is Preact + htm, vendored in `static/vendor/`, with no build step
 and no npm. The tested logic lives in the non-UI modules; see `CLAUDE.md` for an
 architecture overview.
+
+### Releasing
+
+`main` is where work happens; the installer only ever installs tagged releases.
+To publish one:
+
+```bash
+# 1. set `version` in pyproject.toml (e.g. 0.2.0), then refresh the lockfile
+uv lock
+git commit -am "Release v0.2.0" && git push
+# 2. tag it and publish
+git tag v0.2.0 && git push origin v0.2.0
+gh release create v0.2.0 --generate-notes
+```
+
+Anyone who runs the installer or updates after that gets `v0.2.0`. The speaker
+model has its own release, `speaker-model-v1`, which the installer downloads
+separately; its name does not start with `v`, so it is never taken for an app
+release.
 
 ## Credits
 

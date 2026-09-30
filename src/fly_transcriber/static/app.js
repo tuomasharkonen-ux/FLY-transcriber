@@ -39,7 +39,7 @@ async function copyTranscript(meeting, toast) {
 
 // -- chrome -----------------------------------------------------------------
 
-const Footer = () => html`
+const Footer = ({ version }) => html`
   <footer class="footer">
     <${Logo} size=${40} />
     <div class="footer-name">${BRAND.name}</div>
@@ -48,6 +48,7 @@ const Footer = () => html`
         ? html`<span><strong>${w[0]}</strong>${w[1]}</span>`
         : html`<span class="filler">${w}</span>`)}
     </div>
+    ${version && html`<div class="footer-version">${version === "dev" ? "dev build" : `v${version}`}</div>`}
   </footer>`;
 
 const RunStatus = ({ run }) => html`
@@ -511,7 +512,7 @@ function App() {
   return html`
     <${TopBar} route=${route} run=${run} />
     <main>${page}</main>
-    <${Footer} />
+    <${Footer} version=${state?.version} />
     ${filingMeeting && html`<${FileDialog} key=${filing} meeting=${filingMeeting} projects=${projects}
       toast=${toast} onClose=${() => setFiling(null)} />`}
     <${Toasts} toasts=${toasts} />`;

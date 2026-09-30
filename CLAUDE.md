@@ -51,9 +51,9 @@ Tested logic lives in the non-UI modules; `app.py` and `shell.py` have no tests.
 - `notes/` and `hf_token` are gitignored — they contain meeting content / secrets. Never commit transcripts.
 - The repo is meant to be public: keep real client, project and colleague names out of code, tests, fixtures and docs (use Acme/Globex, Aino/Mikko/Sara, Alex/Sam).
 
-## Project status (2026-09-29)
+## Releases and notes
 
-- Repo `tuomasharkonen-ux/FLY-transcriber` is **private**; history was squashed to one public-ready commit. Going public is the goal. The `curl … | sh` one-liner and the model download only work for others once it's public.
-- **On hold until the owner says go:** creating the `speaker-model-v1` GitHub release with `dist/speaker-diarization-community-1.tar.gz` (command in `scripts/package_speaker_model.sh`). Until it exists the installer's model step 404s and warns.
-- Open follow-ups: make the repo public; send ownscribe a PR adding a `diarization.model` setting (local path, no token required) so the cwd trick can go; a real end-to-end `install.sh` run on a clean Mac (not yet done — watch whether audio permission prompts appear when started as a login item).
+- `main` is work in progress; the installer installs the newest `v*` tag (`FLY_VERSION=vX.Y.Z` overrides), so a release is: bump `version` in `pyproject.toml`, `uv lock`, commit, tag, `gh release create` (steps in the README's Releasing section). The speaker model ships as its own release, `speaker-model-v1` (built by `scripts/package_speaker_model.sh`); keep its tag from starting with `v` so it is never mistaken for an app release.
+- The local server accepts only its own pages: `Host` must be loopback, a present `Origin` must be its own, POSTs must be JSON (`server._allowed`). Keep that when adding routes; any web page the user visits can reach the port.
+- Follow-up: send ownscribe a PR adding a `diarization.model` setting (local path, no token required) so the cwd trick in `recorder.py` can go.
 - `docs/how-it-works.html` is an animated slide deck explaining the product; keep it in step with the README when behaviour changes. `docs/demo.gif` is rendered from the real popover UI by `scripts/make_demo_gif.py` driving the scripted story in `scripts/readme_demo.js` (fake API, stand-in desktop); re-render it when the popover changes.

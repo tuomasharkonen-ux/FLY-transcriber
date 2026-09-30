@@ -102,9 +102,41 @@ class _Handler(BaseHTTPRequestHandler):
             return {}
         return data if isinstance(data, dict) else {}
 
+    # -- who may ask ---------------------------------------------------------
+
+    def _allowed(self, post: bool) -> bool:
+        """Only this app's own pages may talk to the server.
+
+        The port is open to every web page the user visits, and a page can send
+        a POST here without any permission prompt (a "simple" cross-site
+        request), or reach it under its own domain name (DNS rebinding) and
+        read transcripts. Three checks close that: the ``Host`` must be the
+        loopback address, an ``Origin`` (sent on cross-site requests) must be
+        this server's own, and POSTs must be JSON, which a page cannot send
+        cross-site without a preflight this server never answers.
+        """
+        port = self.server.server_address[1]
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        if self.headers.get("Host") not in hosts:
+            return False
+        origin = self.headers.get("Origin")
+        if origin is not None and origin not in {f"http://{h}" for h in hosts}:
+            return False
+        if post:
+            kind = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            if kind != "application/json":
+                return False
+        return True
+
+    def _refuse(self) -> None:
+        self._json({"error": "forbidden"}, 403)
+
     # -- routes --------------------------------------------------------------
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._allowed(post=False):
+            self._refuse()
+            return
         path, _, query = self.path.partition("?")
         if path == "/api/state":
             self._json(self.api.snapshot())
@@ -119,6 +151,9 @@ class _Handler(BaseHTTPRequestHandler):
         self._serve_static("index.html" if path == "/" else path.lstrip("/"))
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._allowed(post=True):
+            self._refuse()
+            return
         path = self.path.split("?", 1)[0]
         payload = self._read_json()
         try:

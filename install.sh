@@ -9,10 +9,14 @@
 # to Applications (/Applications when you may write there, else ~/Applications)
 # so it can be opened from Spotlight after quitting.
 #
+# It installs the latest release (the newest v* tag), so work in progress on
+# main never reaches anyone. Run it again to update.
+#
 # Options:
 #   --no-login-item   don't start the app at login
 #   --no-warmup       skip the ~3 GB speech model download; it then happens
 #                     during the first recording instead
+#   FLY_VERSION=v0.2.0 (environment) install that release instead of the latest
 #   --uninstall       remove the app, its login item, FLY.app, models and ownscribe
 #                     (settings, recordings and transcripts are kept)
 set -eu
@@ -60,6 +64,21 @@ model_ok() {
   [ -d "$1" ] && ( cd "$1" && printf '%s\n' "$MODEL_SHA256" | shasum -a 256 -c -s ) 2>/dev/null
 }
 
+# Quits a running FLY so the update (or removal) can replace it, but never one
+# that is recording or still processing: that would lose a meeting.
+stop_running_app() {
+  state="$(curl -s -m 2 http://127.0.0.1:8756/api/state 2>/dev/null || true)"
+  case "$state" in
+    *'"css": "recording"'*|*'"css": "busy"'*)
+      fail "FLY is recording or processing a meeting. Let it finish, then run this again." ;;
+  esac
+  if pgrep -f "$BIN_DIR/fly-transcriber" >/dev/null 2>&1; then
+    say "Quitting the running FLY"
+    pkill -f "$BIN_DIR/fly-transcriber" 2>/dev/null || true
+    sleep 2
+  fi
+}
+
 unload_login_item() {
   if [ -f "$PLIST" ]; then
     launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
@@ -68,6 +87,7 @@ unload_login_item() {
 }
 
 if [ "$action" = uninstall ]; then
+  stop_running_app
   say "Removing login item"
   unload_login_item
   if [ -x "$BIN_DIR/fly-transcriber" ]; then
@@ -117,8 +137,22 @@ fi
 say "Installing ownscribe (recording, transcription and diarization engine)"
 uv tool install --python "$PYTHON" --upgrade "$OWNSCRIBE"
 
-say "Installing FLY-transcriber"
-uv tool install --python "$PYTHON" --force "git+$REPO"
+# The newest v* tag is the latest release. Tags only, so the speaker model's
+# own release (speaker-model-v1) is never mistaken for one.
+ref="${FLY_VERSION:-}"
+if [ -z "$ref" ]; then
+  ref="$(git ls-remote --tags --refs --sort=-v:refname "$REPO" 'v*' 2>/dev/null \
+    | head -n 1 | sed 's|.*refs/tags/||')"
+fi
+stop_running_app
+if [ -n "$ref" ]; then
+  say "Installing FLY-transcriber $ref"
+  uv tool install --python "$PYTHON" --force "git+$REPO@$ref"
+else
+  warn "No release found; installing the latest development version."
+  say "Installing FLY-transcriber"
+  uv tool install --python "$PYTHON" --force "git+$REPO"
+fi
 
 # -- models ------------------------------------------------------------------
 

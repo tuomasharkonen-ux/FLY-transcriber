@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from . import config as appconfig
@@ -37,6 +38,13 @@ def _processing_progress(run: RunState) -> float | None:
     if run.processing_started_at is None:
         return None
     return progress.fraction(time.time() - run.processing_started_at, run.processing_eta)
+
+
+def app_version() -> str:
+    try:
+        return version("fly-transcriber")
+    except PackageNotFoundError:  # running from a checkout that was never installed
+        return "dev"
 
 
 def _fmt_duration(seconds: int) -> str:
@@ -263,6 +271,7 @@ class MeetingRecorderApp:
                 }
             )
         return {
+            "version": app_version(),
             "run": self._run_summary(run),
             "meetings": meetings,
             "projects": [
@@ -563,6 +572,9 @@ class MeetingRecorderApp:
 
 def main() -> None:
     args = sys.argv[1:]
+    if args == ["--version"]:
+        print(f"fly-transcriber {app_version()}")
+        return
     if args[:1] == ["install-agent"]:
         sys.exit(_install_agent(args[1:]))
     if args == ["warmup"]:
@@ -598,6 +610,7 @@ def _extend_path() -> None:
 
 USAGE = """usage: fly-transcriber [--show]                start the menubar app (--show
                                                also opens the dashboard)
+       fly-transcriber --version               print the installed version
        fly-transcriber install-agent <folder>  add CLAUDE.md and the agent skill
                                                to an existing project folder
        fly-transcriber warmup                  download the speech models now,
