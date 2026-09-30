@@ -59,6 +59,30 @@
   .tagline { font-size: 30px; color: var(--text-2); margin-top: 18px; }
   .tagline b { color: var(--text); font-weight: 600; }
 
+  /* ---------- 1b: what it records ---------- */
+  .hear { display: grid; grid-template-columns: 1fr 120px 340px; align-items: center; margin-top: 52px; }
+  .srcs { display: grid; gap: 46px; }
+  .src { display: flex; align-items: center; gap: 22px; height: 104px; box-sizing: border-box;
+    padding: 0 28px; border-radius: 28px; background: var(--bg-2); border: 2px solid var(--line); }
+  .src.you { border-color: var(--amber); }
+  .src.sys { border-color: var(--blue); }
+  .src .ic { font-size: 52px; }
+  .src b { display: block; font-size: 26px; }
+  .src span { font-size: 18px; color: var(--text-2); }
+  .merge { width: 120px; height: 254px; overflow: visible; }
+  .merge path { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 220; stroke-dashoffset: 220; }
+  .merge .m1 { stroke: var(--amber); }
+  .merge .m2 { stroke: var(--blue-hi); }
+  .active .merge path { animation: draw .9s 1.2s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .result { text-align: center; padding: 28px 24px; border-radius: 28px; background: var(--bg-2);
+    border: 2px solid var(--green-hi); }
+  .result .bars { height: 90px; justify-content: center; margin-bottom: 16px; }
+  .result b { display: block; font-size: 26px; }
+  .result span { font-size: 18px; color: var(--text-2); }
+  .hear-note { margin-top: 44px; }
+  .hear-small { margin-top: 10px; font-size: 18px; color: var(--text-2); }
+
   /* ---------- 2: local ---------- */
   .local { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 40px; }
   .mac { position: relative; width: 480px; height: 320px; margin: 0 auto; }
@@ -331,6 +355,25 @@
         <p class="sub a" style="--d:1.1s; margin-top:36px">Record a meeting. Get a transcript that says <span class="hl">who said what</span>.<br>All securely and fully locally on your Mac.</p>
       </div>
     </div>
+  </section>
+
+  <!-- 1b: what it records -->
+  <section class="slide">
+    <div class="kicker a">What it records</div>
+    <h2 class="a" style="--d:.1s">Your voice and everyone else on the call</h2>
+    <div class="hear">
+      <div class="srcs">
+        <div class="src you a pop" style="--d:.4s"><div class="ic">🎙️</div><div><b>Your microphone</b><span>what you say</span></div></div>
+        <div class="src sys a pop" style="--d:.8s"><div class="ic">🔊</div><div><b>Computer audio</b><span>what you hear: the other people on the call</span></div></div>
+      </div>
+      <svg class="merge" viewBox="0 0 120 254" aria-hidden="true">
+        <path class="m1" d="M0 52 C60 52 60 127 120 127"/>
+        <path class="m2" d="M0 202 C60 202 60 127 120 127"/>
+      </svg>
+      <div class="result a pop" style="--d:1.4s"><div class="bars" data-bars="18"></div><b>One recording</b><span>both sides, kept on your Mac</span></div>
+    </div>
+    <p class="sub hear-note a" style="--d:1.9s">No bot joins the call, and nobody else needs to install anything.</p>
+    <p class="hear-small a" style="--d:2.2s">Remember to tell people you are recording.</p>
   </section>
 
   <!-- 2 -->
