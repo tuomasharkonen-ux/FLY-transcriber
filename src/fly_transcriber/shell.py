@@ -79,7 +79,9 @@ def activate() -> None:
     main thread with nothing visible.
     """
     try:
-        NSApplication.sharedApplication().activate()
+        # activate() alone is ignored when another app is frontmost and has not
+        # yielded; the older call still brings an accessory app forward.
+        NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
     except Exception:
         pass
 

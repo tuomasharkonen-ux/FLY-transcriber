@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import subprocess
 import textwrap
 import threading
@@ -1220,6 +1221,11 @@ def test_launcher_bundle_runs_the_tool_with_show(tmp_path):
     assert info["LSUIElement"] is True  # no Dock icon
     assert (app / "Contents" / "Resources" / "FLY.icns").exists()
     subprocess.run([str(app / "Contents" / "MacOS" / "FLY")], check=True)
+    # The tool is started in the background, so give it a moment to write.
+    for _ in range(50):
+        if marker.exists() and marker.read_text().strip():
+            break
+        time.sleep(0.1)
     assert marker.read_text().strip() == "--show"
 
 

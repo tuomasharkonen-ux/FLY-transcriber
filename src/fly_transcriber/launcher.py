@@ -2,7 +2,7 @@
 
 The app is otherwise only a command-line tool and a login item: once quit, the
 menubar icon is gone with nothing in Spotlight or Launchpad to bring it back.
-The bundle here is a stub that runs that tool with ``--show``. It has no Dock
+The bundle here is a stub that starts that tool with ``--show``. It has no Dock
 icon (``LSUIElement``) and needs no signing beyond an ad-hoc one.
 
 Installed in ``/Applications`` when the user may write there (admin users can,
@@ -78,10 +78,14 @@ def _build(directory: Path, tool: Path) -> Path:
         resources.mkdir()
 
         script = macos / "FLY"
+        # Started detached, not exec'd: when the app process *is* the one
+        # LaunchServices launched for this bundle, macOS never shows its menubar
+        # icon (seen on macOS 26; the cause is unknown). The script exits at
+        # once, which is fine -- a second launch finds the running app itself.
         script.write_text(
             "#!/bin/sh\n"
             "# Starts FLY, or brings up the running one.\n"
-            f"exec {shlex.quote(str(tool))} --show\n",
+            f"nohup {shlex.quote(str(tool))} --show >/dev/null 2>&1 &\n",
             encoding="utf-8",
         )
         script.chmod(0o755)
