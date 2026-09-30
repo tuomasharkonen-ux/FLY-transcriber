@@ -80,7 +80,7 @@ button.rec-live:hover { background: color-mix(in srgb, var(--danger) 88%, #000);
 .rec-live .rec-dot { width: 10px; height: 10px; border-radius: 2px; background: #fff; }
 .rec-live .rec-aside { color: #fff; }
 
-.rec-busy { cursor: default; color: var(--busy); font-weight: 550; }
+.rec-busy { position: relative; overflow: hidden; cursor: default; color: var(--busy); font-weight: 550; }
 .rec-busy .rec-dot { background: var(--busy); animation: pulse 1.4s ease-in-out infinite; }
 .rec-busy .rec-aside { font-size: 12px; }
 

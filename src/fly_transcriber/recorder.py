@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from . import progress
 from .config import Settings
 from .diarization import MODELS_DIR, has_local_model
 
@@ -55,6 +56,9 @@ class RunState:
     meeting_dir: Path | None = None
     error: str = ""
     started_at: float | None = None
+    #: When processing began and how long it is predicted to take (seconds).
+    processing_started_at: float | None = None
+    processing_eta: float = 0.0
     log: list[str] = field(default_factory=list)
 
     @property
@@ -240,6 +244,9 @@ class Recorder:
             if marker in tail and self.state.phase is not phase:
                 # Only advance forwards through the pipeline.
                 if _phase_order(phase) > _phase_order(self.state.phase):
+                    if self.state.processing_started_at is None:
+                        self.state.processing_started_at = time.time()
+                        self.state.processing_eta = progress.predict(self.state.elapsed)
                     self.state.phase = phase
                     self.state.detail = marker
                     changed = True
@@ -256,6 +263,10 @@ class Recorder:
     def _finish(self, returncode: int) -> None:
         self.state.meeting_dir = self._find_meeting_dir()
         if returncode == 0:
+            if self.state.processing_started_at is not None:
+                progress.record(
+                    self.state.elapsed, time.time() - self.state.processing_started_at
+                )
             self.state.phase = Phase.DONE
             self.state.detail = "Complete"
         else:

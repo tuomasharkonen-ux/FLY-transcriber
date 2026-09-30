@@ -196,6 +196,33 @@ def speakers(turns: list[Turn]) -> list[str]:
     return seen
 
 
+def resolve_merges(merges: dict[str, str] | None) -> dict[str, str]:
+    """Follow merge chains to their end, ignoring self-merges and cycles."""
+    resolved: dict[str, str] = {}
+    for label in merges or {}:
+        seen = {label}
+        target = merges[label]
+        while target in merges and target not in seen:
+            seen.add(target)
+            target = merges[target]
+        if target not in seen:
+            resolved[label] = target
+    return resolved
+
+
+def merge_speakers(turns: list[Turn], merges: dict[str, str] | None) -> list[Turn]:
+    """Reassign turns of merged-away speakers to the speaker they were merged into.
+
+    Diarization can split one voice in two; merging fixes that after the fact.
+    """
+    mapping = resolve_merges(merges)
+    if not mapping:
+        return turns
+    return [
+        Turn(mapping.get(t.speaker or "", t.speaker), t.start, t.text) for t in turns
+    ]
+
+
 def samples(turns: list[Turn], max_chars: int = 90) -> dict[str, str]:
     """First thing each speaker says, as a hint when naming them."""
     found: dict[str, str] = {}
@@ -219,12 +246,13 @@ def render(turns: list[Turn], names: dict[str, str] | None = None) -> str:
     for i, turn in enumerate(turns):
         speaker = turn.speaker or UNATTRIBUTED
         label = mapping.get(turn.speaker or "", speaker) or UNATTRIBUTED
-        if speaker != previous:
+        # Compare what is shown, so two labels given one name read as one speaker.
+        if label != previous:
             if i:
                 lines.append("")
             lines.append(f"**{label}** [{turn.timestamp}]")
             lines.append(turn.text)
-            previous = speaker
+            previous = label
         else:
             lines.append(f"[{turn.timestamp}] {turn.text}")
     return "\n".join(lines).strip()

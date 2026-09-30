@@ -2,7 +2,7 @@
 import { html, render, useEffect, useMemo, useRef, useState } from "./vendor/htm-preact-3.1.1.js";
 import {
   BRAND, BRAND_TEXT, Avatar, Button, Empty, Field, FilingFields, Icon, IconButton, Logo, Pill,
-  Switch, Toasts, api, awaitsFiling, fmtDuration, speakerHue, speakerName, status,
+  RunBar, Switch, Toasts, api, awaitsFiling, fmtDuration, speakerHue, speakerName, status,
   useFilingForm, useToasts,
 } from "./common.js";
 
@@ -55,6 +55,7 @@ const RunStatus = ({ run }) => html`
     <span class="run-dot"></span>
     <span class="run-label">${run.css === "idle" ? "Ready" : run.label}</span>
     ${run.detail && html`<span class="run-detail">${run.detail}</span>`}
+    <${RunBar} progress=${run.progress} />
   </div>`;
 
 const TopBar = ({ route, run }) => {
@@ -100,7 +101,7 @@ const RecordingRow = ({ meeting, onFile, toast }) => {
       <div class="row-actions">
         ${canAct && html`
           <${Button} size="sm" variant=${meeting.filed.length ? "secondary" : "primary"} icon="send"
-            onClick=${stop(() => onFile(meeting))}>Save<//>
+            onClick=${stop(() => onFile(meeting))}>${meeting.filed.length ? "Edit" : "Save"}<//>
           <${IconButton} icon="copy" label="Copy transcript"
             onClick=${stop(() => copyTranscript(meeting, toast))} />`}
         <${IconButton} icon="chevron" label="Open" onClick=${stop(open)} />
@@ -206,7 +207,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
           ${canAct && html`
             <${Button} icon="copy" onClick=${() => copyTranscript(meeting, toast)}>Copy<//>
             <${Button} variant="primary" icon="send" onClick=${() => onFile(meeting)}>
-              ${meeting.filed.length ? "Save again" : "Save"}
+              ${meeting.filed.length ? "Edit" : "Save"}
             <//>`}
         </div>
       </div>
@@ -279,7 +280,7 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
       <form method="dialog" class="dialog-body" onSubmit=${form.submit}>
         <div class="dialog-head">
           <div>
-            <h2>Save recording</h2>
+            <h2>${meeting.filed.length ? "Edit saved note" : "Save recording"}</h2>
             <p class="subtle">${meeting.when}${meeting.duration ? ` · ${fmtDuration(meeting.duration)}` : ""}</p>
           </div>
           <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
@@ -293,7 +294,7 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
               title="Stop counting this one as waiting to be saved">Don't save<//>`}
           <${Button} onClick=${() => ref.current.close()}>Cancel<//>
           <button type="submit" class="btn btn-primary" disabled=${form.busy || !projects.length}>
-            ${form.busy ? "Saving…" : `Save to ${form.project || "…"}`}
+            ${form.busy ? "Saving…" : `${meeting.filed.length ? "Save changes to" : "Save to"} ${form.project || "…"}`}
           </button>
         </div>
       </form>

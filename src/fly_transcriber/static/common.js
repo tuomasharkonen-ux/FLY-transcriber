@@ -187,6 +187,7 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
   const [title, setTitle] = useState(meeting.state.title || meeting.title || "");
   const [participants, setParticipants] = useState((meeting.state.participants || []).join(", "));
   const [names, setNames] = useState({ ...(meeting.state.speaker_names || {}) });
+  const [merges, setMerges] = useState({ ...(meeting.state.speaker_merges || {}) });
   const [project, setProject] = useState(
     meeting.state.pending_project || meeting.filed[0]?.project || projects[0]?.name || "",
   );
@@ -198,7 +199,7 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
     setBusy(true);
     setError("");
     const speaker_names = Object.fromEntries(
-      Object.entries(names).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v),
+      Object.entries(names).map(([k, v]) => [k, v.trim()]).filter(([k, v]) => v && !merges[k]),
     );
     try {
       await api("/api/file", {
@@ -207,6 +208,7 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
         title: title.trim(),
         participants: participants.split(",").map((s) => s.trim()).filter(Boolean),
         speaker_names,
+        speaker_merges: merges,
       });
       onFiled(project);
     } catch (err) {
@@ -225,10 +227,25 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
   };
 
   return {
-    title, setTitle, participants, setParticipants, names, setNames,
+    title, setTitle, participants, setParticipants, names, setNames, merges, setMerges,
     project, setProject, busy, error, submit, skip,
   };
 }
+
+/** What the save form merges from: every label diarization produced. */
+const rawSpeakers = (meeting) => meeting.raw_speakers || meeting.speakers;
+
+/** Merge targets that keep the map acyclic: not already merged away, and not something merged into this one. */
+const mergeTargets = (form, meeting, label) =>
+  rawSpeakers(meeting).filter((other) =>
+    other !== label && !form.merges[other] && !Object.values(form.merges).includes(label));
+
+const setMerge = (form, label, target) => {
+  const next = { ...form.merges };
+  if (target) next[label] = target;
+  else delete next[label];
+  form.setMerges(next);
+};
 
 export const FilingFields = ({ form, meeting, projects }) => html`
   <div class="stack">
@@ -241,21 +258,30 @@ export const FilingFields = ({ form, meeting, projects }) => html`
         onInput=${(e) => form.setParticipants(e.currentTarget.value)} />
     <//>
 
-    ${meeting.speakers.length > 0 && html`
+    ${rawSpeakers(meeting).length > 0 && html`
       <div class="field">
         <span class="field-label">Who is who</span>
         <div class="speaker-map">
-          ${meeting.speakers.map((label) => html`
+          ${rawSpeakers(meeting).map((label) => html`
             <div class="speaker-map-row" key=${label}>
-              <span class="avatar" data-hue=${speakerHue(label, meeting.speakers)}>${initials(label)}</span>
+              <span class="avatar" data-hue=${speakerHue(label, rawSpeakers(meeting))}>${initials(label)}</span>
               <div class="speaker-map-fields">
-                <input class="input" value=${form.names[label] || ""} placeholder=${prettyLabel(label)}
-                  onInput=${(e) => form.setNames({ ...form.names, [label]: e.currentTarget.value })} />
-                ${meeting.samples?.[label] && html`<span class="quote" title=${meeting.samples[label]}>“${meeting.samples[label]}”</span>`}
+                ${!form.merges[label] && html`
+                  <input class="input" value=${form.names[label] || ""} placeholder=${prettyLabel(label)}
+                    onInput=${(e) => form.setNames({ ...form.names, [label]: e.currentTarget.value })} />
+                  ${meeting.samples?.[label] && html`<span class="quote" title=${meeting.samples[label]}>“${meeting.samples[label]}”</span>`}`}
+                ${rawSpeakers(meeting).length > 1 && html`
+                  <select class="input input-sm" value=${form.merges[label] || ""}
+                    aria-label=${`Is ${form.names[label] || prettyLabel(label)} the same person as another speaker?`}
+                    onChange=${(e) => setMerge(form, label, e.currentTarget.value)}>
+                    <option value="">Separate person</option>
+                    ${mergeTargets(form, meeting, label).map((other) => html`
+                      <option key=${other} value=${other}>Same person as ${form.names[other] || prettyLabel(other)}</option>`)}
+                  </select>`}
               </div>
             </div>`)}
         </div>
-        <span class="field-hint">Names apply to the saved copy only.</span>
+        <span class="field-hint">Names and merges apply to the saved copy only. Merge a speaker that was split in two.</span>
       </div>`}
 
     <${Field} label="Destination">
@@ -267,3 +293,10 @@ export const FilingFields = ({ form, meeting, projects }) => html`
     ${!projects.length && html`<div class="error-text">No projects yet. Right-click the menubar icon → New Project…</div>`}
     ${form.error && html`<div class="error-text">${form.error}</div>`}
   </div>`;
+
+// Thin bar along the bottom edge of a busy status; hidden until a prediction exists.
+export const RunBar = ({ progress }) =>
+  progress == null ? null : html`
+    <span class="run-bar" aria-hidden="true">
+      <span style=${{ width: `${Math.round(progress * 100)}%` }}></span>
+    </span>`;

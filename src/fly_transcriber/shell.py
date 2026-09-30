@@ -112,6 +112,20 @@ class _Action(NSObject):
         self._callback(sender)
 
 
+class _AppDelegate(NSObject):
+    """Lets the app veto termination (logout, shutdown, ``NSApp.terminate``)."""
+
+    def initWithGuard_(self, guard):
+        self = objc.super(_AppDelegate, self).init()
+        if self is not None:
+            self._guard = guard
+        return self
+
+    def applicationShouldTerminate_(self, _app):
+        # NSTerminateCancel = 0, NSTerminateNow = 1
+        return 1 if self._guard() else 0
+
+
 class _Bridge(NSObject, protocols=[objc.protocolNamed("WKScriptMessageHandler")]):
     """Receives ``window.webkit.messageHandlers.fly.postMessage(...)``."""
 
@@ -196,9 +210,17 @@ def _symbol(name: str, description: str) -> NSImage | None:
 class Shell:
     """Owns every native UI object. Create and use it on the main thread."""
 
-    def __init__(self, base_url: str, menu: Callable[[], MenuSpec]) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        menu: Callable[[], MenuSpec],
+        confirm_quit: Callable[[], bool] = lambda: True,
+    ) -> None:
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+        # NSApplication holds its delegate weakly, so keep a reference.
+        self._delegate = _AppDelegate.alloc().initWithGuard_(confirm_quit)
+        self._app.setDelegate_(self._delegate)
         self._base_url = base_url
         self._menu_spec = menu
         # PyObjC does not keep Python-side targets alive; these do.

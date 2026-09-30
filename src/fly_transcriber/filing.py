@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .meetings import Meeting
 from .projects import Project, filename_for
+from .transcript import merge_speakers, speakers as turn_speakers
 from .transcript import render as render_turns
 
 #: Marks a file as an unprocessed transcript. The receiving agent keys off this
@@ -52,6 +53,8 @@ def file_meeting(
     participants: list[str] | None = None,
     speaker_names: dict[str, str] | None = None,
     title: str | None = None,
+    speaker_merges: dict[str, str] | None = None,
+    replace: Path | None = None,
 ) -> FilingResult:
     """Write ``meeting``'s transcript into ``project``'s folder.
 
@@ -61,8 +64,13 @@ def file_meeting(
     can only be supplied after transcription. ``title`` names the meeting;
     without summarization there is nothing to derive one from.
 
-    Never overwrites: a colliding name gets a ``-2``, ``-3`` suffix, because
-    losing a transcript to a filename clash is far worse than a duplicate.
+    ``speaker_merges`` maps a label to the label it is the same person as.
+
+    Never overwrites by accident: a colliding name gets a ``-2``, ``-3`` suffix,
+    because losing a transcript to a filename clash is far worse than a
+    duplicate. The one exception is ``replace`` -- a note this app wrote earlier,
+    rewritten in place -- and only while it still carries ``RAW_MARKER``. Once
+    the receiving agent has turned it into notes, it is not ours to touch.
     """
     if not meeting.has_transcript:
         raise FilingError(f"{meeting.directory.name} has no transcript yet")
@@ -73,11 +81,22 @@ def file_meeting(
     except OSError as exc:
         raise FilingError(f"Cannot create {target_dir}: {exc}") from exc
 
-    path = _unique_path(target_dir / filename_for(meeting, project, title))
+    if replace is not None and _still_raw(replace):
+        path = replace
+    else:
+        path = _unique_path(target_dir / filename_for(meeting, project, title))
     path.write_text(
-        render(meeting, project, participants, speaker_names, title), encoding="utf-8"
+        render(meeting, project, participants, speaker_names, title, speaker_merges),
+        encoding="utf-8",
     )
     return FilingResult(path=path, project=project.name)
+
+
+def _still_raw(path: Path) -> bool:
+    try:
+        return RAW_MARKER in path.read_text(encoding="utf-8")
+    except OSError:
+        return False
 
 
 def _unique_path(path: Path) -> Path:
@@ -97,6 +116,7 @@ def render(
     participants: list[str] | None = None,
     speaker_names: dict[str, str] | None = None,
     title: str | None = None,
+    speaker_merges: dict[str, str] | None = None,
 ) -> str:
     """Render the transcript note for a project."""
     started = meeting.started or datetime.fromtimestamp(
@@ -104,7 +124,9 @@ def render(
     )
     heading = title or meeting.title or "Meeting"
 
-    lines = _frontmatter(meeting, project, started, heading, participants, speaker_names)
+    lines = _frontmatter(
+        meeting, project, started, heading, participants, speaker_names, speaker_merges
+    )
     lines += ["", f"# {heading}", ""]
 
     if project.frontmatter == "obsidian":
@@ -119,7 +141,7 @@ def render(
     if meeting.has_speakers:
         lines += [ATTRIBUTION_NOTE, ""]
 
-    lines += ["## Transcript", "", _transcript_body(meeting, speaker_names), ""]
+    lines += ["## Transcript", "", _transcript_body(meeting, speaker_names, speaker_merges), ""]
     return "\n".join(lines)
 
 
@@ -130,10 +152,12 @@ def _frontmatter(
     title: str,
     participants: list[str] | None,
     speaker_names: dict[str, str] | None,
+    speaker_merges: dict[str, str] | None = None,
 ) -> list[str]:
     # Show the mapped names where known, anonymous labels otherwise.
     mapping = speaker_names or {}
-    speakers = [mapping.get(s, s) for s in meeting.speakers]
+    merged = turn_speakers(merge_speakers(meeting.turns, speaker_merges))
+    speakers = list(dict.fromkeys(mapping.get(s, s) for s in merged))
     people = ", ".join(participants or [])
 
     if project.frontmatter == "obsidian":
@@ -166,7 +190,9 @@ def _frontmatter(
 
 
 def _transcript_body(
-    meeting: Meeting, speaker_names: dict[str, str] | None = None
+    meeting: Meeting,
+    speaker_names: dict[str, str] | None = None,
+    speaker_merges: dict[str, str] | None = None,
 ) -> str:
     """Render the transcript, one labelled block per speaker turn.
 
@@ -177,4 +203,4 @@ def _transcript_body(
     if not meeting.has_transcript:
         return "_No transcript._"
     names = {k: v.strip() for k, v in (speaker_names or {}).items() if v.strip()}
-    return render_turns(meeting.turns, names)
+    return render_turns(merge_speakers(meeting.turns, speaker_merges), names)

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from . import config as appconfig
@@ -13,12 +14,15 @@ from .config import Settings, apply_ownscribe_config, load_settings, save_settin
 from .diarization import check_diarization
 from .dialogs import ask_text
 from .filing import file_meeting
-from .meetings import list_meetings, parse_meeting_dir, speaker_samples
+from .meetings import list_meetings, parse_meeting_dir
 from .projects import DEFAULT_INBOX, create_project, install_agent_files, slugify
 from .recorder import Phase, RunState, Recorder, resolve_ownscribe
 from .server import Api, serve_in_background
 from .shell import Shell, alert, call_on_main
+from .transcript import merge_speakers, resolve_merges, speakers
+from .transcript import samples as transcript_samples
 from .transcript import render as render_turns
+from . import progress
 from . import state as meeting_state
 
 RECENT_LIMIT = 8
@@ -26,6 +30,12 @@ RECENT_LIMIT = 8
 
 def _duration(meeting) -> float:
     return meeting.duration
+
+
+def _processing_progress(run: RunState) -> float | None:
+    if run.processing_started_at is None:
+        return None
+    return progress.fraction(time.time() - run.processing_started_at, run.processing_eta)
 
 
 def _fmt_duration(seconds: int) -> str:
@@ -43,7 +53,9 @@ class MeetingRecorderApp:
         self._awaiting = 0
 
         self._server, self.dashboard_url = self._start_server()
-        self.shell = Shell(self.dashboard_url, menu=self._menu)
+        self.shell = Shell(
+            self.dashboard_url, menu=self._menu, confirm_quit=self._confirm_quit
+        )
 
         self._refresh_awaiting()
         self._render(self.recorder.state)
@@ -207,6 +219,7 @@ class MeetingRecorderApp:
         meetings = []
         for meeting in list_meetings(self.settings.resolved_output_dir, RECENT_LIMIT):
             entry = ledger.get(meeting.directory.name, meeting_state.MeetingState())
+            turns = meeting.turns  # parsed once; it is re-read from disk per access
             processing = (
                 run.is_active and run.meeting_dir == meeting.directory
             ) or (run.is_active and run.meeting_dir is None and not meeting.has_transcript)
@@ -219,8 +232,11 @@ class MeetingRecorderApp:
                     "has_transcript": meeting.has_transcript,
                     "has_audio": any(meeting.directory.glob("*.wav")),
                     "processing": processing,
-                    "speakers": meeting.speakers,
-                    "samples": speaker_samples(meeting),
+                    # Effective speakers (after merges) drive the views; the raw
+                    # ones and their samples are what the save form merges from.
+                    "speakers": speakers(merge_speakers(turns, entry.speaker_merges)),
+                    "raw_speakers": speakers(turns),
+                    "samples": transcript_samples(turns),
                     "filed": [
                         {"project": f.project, "path": f.path, "at": f.at}
                         for f in entry.filed
@@ -229,6 +245,7 @@ class MeetingRecorderApp:
                         "title": entry.title,
                         "participants": entry.participants,
                         "speaker_names": entry.speaker_names,
+                        "speaker_merges": entry.speaker_merges,
                         "pending_project": entry.pending_project,
                         "dismissed": entry.dismissed,
                     },
@@ -270,6 +287,7 @@ class MeetingRecorderApp:
                 "label": run.detail or run.phase.value.title(),
                 "detail": f"{elapsed} captured",
                 "elapsed": elapsed,
+                "progress": _processing_progress(run),
             }
         if run.phase is Phase.FAILED:
             return {"css": "failed", "label": "Failed", "detail": run.error, "elapsed": ""}
@@ -291,10 +309,25 @@ class MeetingRecorderApp:
             if str(v).strip()
         }
         meeting = parse_meeting_dir(directory)
-        result = file_meeting(meeting, project, participants, names, title)
+        known = set(speakers(meeting.turns))
+        merges = resolve_merges({
+            str(k): str(v)
+            for k, v in (payload.get("speaker_merges") or {}).items()
+            if k in known and v in known
+        })
+        # A name belongs to a speaker that still exists after merging.
+        names = {k: v for k, v in names.items() if k not in merges}
+
+        entry = meeting_state.get(name)
+        earlier = [Path(f.path) for f in entry.filed if f.project == project.name]
+        result = file_meeting(
+            meeting, project, participants, names, title,
+            speaker_merges=merges, replace=earlier[-1] if earlier else None,
+        )
 
         meeting_state.update(
-            name, title=title, participants=participants, speaker_names=names
+            name, title=title, participants=participants, speaker_names=names,
+            speaker_merges=merges,
         )
         meeting_state.record_filed(name, project.name, result.path)
         self._needs_refresh = True
@@ -327,13 +360,14 @@ class MeetingRecorderApp:
         """The full transcript, for the dashboard's single-recording view."""
         meeting = parse_meeting_dir(self._meeting_directory(name))
         entry = meeting_state.get(name)
+        turns = merge_speakers(meeting.turns, entry.speaker_merges)
         return {
             "name": name,
             "turns": [
                 {"speaker": t.speaker, "start": t.start, "timestamp": t.timestamp, "text": t.text}
-                for t in meeting.turns
+                for t in turns
             ],
-            "markdown": render_turns(meeting.turns, entry.speaker_names),
+            "markdown": render_turns(turns, entry.speaker_names),
         }
 
     def _api_reveal(self, name: str) -> dict:
@@ -467,17 +501,30 @@ class MeetingRecorderApp:
         subprocess.run(["open", str(path)], check=False)
 
     def quit_app(self, _sender) -> None:
-        if self.recorder.state.is_active:
-            confirm = alert(
-                "Recording in progress",
-                "Quitting now discards the current recording. Quit anyway?",
-                ok="Quit",
-                cancel="Cancel",
+        if self._confirm_quit():
+            self.shell.quit()
+
+    def _confirm_quit(self) -> bool:
+        """Ask before quitting mid-run; stop the run if the user agrees."""
+        run = self.recorder.state
+        if not run.is_active:
+            return True
+        if run.is_recording:
+            title = "Recording in progress"
+            message = "Quitting now discards the current recording. Quit anyway?"
+        else:
+            done = _processing_progress(run)
+            how_far = f" (about {round(done * 100)}% done)" if done is not None else ""
+            title = "Transcript still processing"
+            message = (
+                f"The recording is captured, but the transcript is not finished{how_far}. "
+                "Quitting now loses that work and the recording will not get a "
+                "transcript. The audio stays in the recordings folder. Quit anyway?"
             )
-            if not confirm:
-                return
-            self.recorder.abort()
-        self.shell.quit()
+        if not alert(title, message, ok="Quit", cancel="Cancel"):
+            return False
+        self.recorder.abort()
+        return True
 
 
 def main() -> None:

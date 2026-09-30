@@ -202,6 +202,9 @@ main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 24p
   font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap;
   max-width: 45vw;
 }
+.run { position: relative; overflow: hidden; }
+.run-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; }
+.run-bar > span { display: block; height: 100%; background: var(--busy); transition: width 1s linear; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
 .run-label { font-weight: 500; }
 .run-detail { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; }
@@ -372,6 +375,7 @@ main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 24p
   font: 14px var(--font);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.input-sm { height: 30px; font-size: 13px; color: var(--text-2); }
 .input::placeholder { color: var(--text-3); }
 .input:hover { border-color: color-mix(in srgb, var(--line-strong) 60%, var(--text-3)); }
 .input:focus { outline: none; border-color: var(--brand); box-shadow: var(--focus); }

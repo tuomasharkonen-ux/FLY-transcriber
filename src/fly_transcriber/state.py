@@ -40,6 +40,8 @@ class MeetingState:
     participants: list[str] = field(default_factory=list)
     #: Diarization label -> real name.
     speaker_names: dict[str, str] = field(default_factory=dict)
+    #: Diarization label -> the label it is really the same person as.
+    speaker_merges: dict[str, str] = field(default_factory=dict)
     #: The user chose not to file this one; it no longer counts as waiting.
     dismissed: bool = False
     filed: list[FiledCopy] = field(default_factory=list)
@@ -55,6 +57,7 @@ class MeetingState:
             title=data.get("title", "") or "",
             participants=list(data.get("participants") or []),
             speaker_names=dict(data.get("speaker_names") or {}),
+            speaker_merges=dict(data.get("speaker_merges") or {}),
             dismissed=bool(data.get("dismissed", False)),
             filed=[
                 FiledCopy(
@@ -115,10 +118,11 @@ def update(meeting_key: str, **changes) -> MeetingState:
 
 
 def record_filed(meeting_key: str, project: str, path: Path) -> MeetingState:
-    """Append a filed copy. Re-filing to the same project is recorded again."""
+    """Record a filed copy. Rewriting a file already recorded updates its time."""
     with _lock:
         raw = _load_raw()
         current = MeetingState.from_dict(raw.get(meeting_key) or {})
+        current.filed = [f for f in current.filed if f.path != str(path)]
         current.filed.append(
             FiledCopy(
                 project=project,

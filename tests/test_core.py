@@ -1122,3 +1122,79 @@ def test_server_binds_loopback_only():
         assert server.server_address[0] == "127.0.0.1"
     finally:
         server.server_close()
+
+
+def test_progress_prediction_adapts_to_history(tmp_path, monkeypatch):
+    from fly_transcriber import progress
+
+    monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
+    assert progress.predict(1000) == pytest.approx(1000 * progress.DEFAULT_RATE)
+
+    progress.record(10, 5)  # too short to learn from
+    assert not (tmp_path / "timings.json").exists()
+    progress.record(600, 120)
+    progress.record(1200, 240)
+    assert progress.predict(3000) == pytest.approx(600)  # median rate 0.2
+
+
+def test_progress_fraction_is_capped_below_done():
+    from fly_transcriber import progress
+
+    assert progress.fraction(0, 100) == 0
+    assert progress.fraction(50, 100) == pytest.approx(0.475)
+    assert progress.fraction(500, 100) == progress.CAP
+    assert progress.fraction(5, 0) == 0
+
+
+def test_merged_speakers_become_one_in_the_saved_note(tmp_path):
+    d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
+    meeting = parse_meeting_dir(d)
+    project = Project(name="Acme", path=str(tmp_path / "inbox"), frontmatter="obsidian")
+
+    note = file_meeting(
+        meeting, project, speaker_names={"SPEAKER_00": "Aino"},
+        speaker_merges={"SPEAKER_01": "SPEAKER_00"},
+    ).path.read_text(encoding="utf-8")
+
+    assert "speakers: [Aino]" in note
+    assert "SPEAKER_01" not in note
+    assert note.count("**Aino**") == 1  # consecutive turns collapse into one block
+
+
+def test_resolve_merges_follows_chains_and_ignores_cycles():
+    from fly_transcriber.transcript import resolve_merges
+
+    assert resolve_merges({"B": "A", "C": "B"}) == {"B": "A", "C": "A"}
+    assert resolve_merges({"A": "A"}) == {}
+    assert resolve_merges({"A": "B", "B": "A"}) == {}
+
+
+def test_refiling_rewrites_a_raw_note_in_place(tmp_path):
+    d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
+    meeting = parse_meeting_dir(d)
+    project = Project(name="Acme", path=str(tmp_path / "inbox"), frontmatter="obsidian")
+
+    first = file_meeting(meeting, project).path
+    again = file_meeting(meeting, project, title="Renamed", replace=first).path
+    assert again == first
+    assert "title: Renamed" in first.read_text(encoding="utf-8")
+    assert len(list((tmp_path / "inbox").iterdir())) == 1
+
+
+def test_refiling_leaves_a_note_the_agent_already_processed(tmp_path):
+    d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
+    meeting = parse_meeting_dir(d)
+    project = Project(name="Acme", path=str(tmp_path / "inbox"), frontmatter="obsidian")
+
+    first = file_meeting(meeting, project).path
+    first.write_text("# Finished notes\n", encoding="utf-8")  # marker removed
+    second = file_meeting(meeting, project, replace=first).path
+    assert second != first
+    assert first.read_text(encoding="utf-8") == "# Finished notes\n"
+
+
+def test_ledger_refiling_same_path_does_not_duplicate(tmp_path, monkeypatch):
+    monkeypatch.setattr(meeting_state, "STATE_PATH", tmp_path / "state.json")
+    meeting_state.record_filed("m1", "Acme", Path("/x/a.md"))
+    meeting_state.record_filed("m1", "Acme", Path("/x/a.md"))
+    assert len(meeting_state.get("m1").filed) == 1

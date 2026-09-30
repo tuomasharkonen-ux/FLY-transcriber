@@ -47,7 +47,7 @@ def meeting(name, title, when, duration, speakers, filed=(), processing=False, t
 
 def run_summary():
     if RUN["started"] is None:
-        return {"css": "busy", "label": "Diarizing", "detail": "42:10 captured", "elapsed": "42:10"}
+        return {"css": "busy", "label": "Diarizing", "detail": "42:10 captured", "elapsed": "42:10", "progress": 0.6}
     s = int(time.time() - RUN["started"])
     return {"css": "recording", "label": f"Recording — {s // 60}:{s % 60:02d}", "detail": "",
             "elapsed": f"{s // 60}:{s % 60:02d}"}

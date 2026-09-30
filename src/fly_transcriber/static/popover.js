@@ -4,7 +4,7 @@
 // plain page.
 import { html, render, useEffect, useRef, useState } from "./vendor/htm-preact-3.1.1.js";
 import {
-  BRAND, BRAND_TEXT, Button, FilingFields, Icon, IconButton, Logo, Pill, Toasts, api, awaitsFiling,
+  BRAND, BRAND_TEXT, Button, FilingFields, Icon, IconButton, Logo, Pill, RunBar, Toasts, api, awaitsFiling,
   fmtDuration, native, status, useFilingForm, useToasts,
 } from "./common.js";
 
@@ -22,6 +22,7 @@ const RecordControl = ({ run, onToggle }) => {
         <span class="rec-dot"></span>
         <span class="rec-label">${run.label}…</span>
         <span class="rec-aside">${run.detail}</span>
+        <${RunBar} progress=${run.progress} />
       </div>`;
   }
   const live = run.css === "recording";
