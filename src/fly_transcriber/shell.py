@@ -115,11 +115,17 @@ class _Action(NSObject):
 class _AppDelegate(NSObject):
     """Lets the app veto termination (logout, shutdown, ``NSApp.terminate``)."""
 
-    def initWithGuard_(self, guard):
+    def initWithGuard_reopen_(self, guard, reopen):
         self = objc.super(_AppDelegate, self).init()
         if self is not None:
             self._guard = guard
+            self._reopen = reopen
         return self
+
+    def applicationShouldHandleReopen_hasVisibleWindows_(self, _app, _visible):
+        # Launching an already-running app again (Spotlight, Finder, the Dock).
+        self._reopen()
+        return True
 
     def applicationShouldTerminate_(self, _app):
         # NSTerminateCancel = 0, NSTerminateNow = 1
@@ -215,11 +221,14 @@ class Shell:
         base_url: str,
         menu: Callable[[], MenuSpec],
         confirm_quit: Callable[[], bool] = lambda: True,
+        on_reopen: Callable[[], None] = lambda: None,
     ) -> None:
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
         # NSApplication holds its delegate weakly, so keep a reference.
-        self._delegate = _AppDelegate.alloc().initWithGuard_(confirm_quit)
+        self._delegate = _AppDelegate.alloc().initWithGuard_reopen_(
+            confirm_quit, on_reopen
+        )
         self._app.setDelegate_(self._delegate)
         self._base_url = base_url
         self._menu_spec = menu

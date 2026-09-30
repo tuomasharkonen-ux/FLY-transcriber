@@ -983,6 +983,7 @@ def _stub_api(**overrides):
         file_meeting=overrides.get("file_meeting", file_meeting),
         save_settings=overrides.get("save_settings", save_settings),
         forget=overrides.get("forget", forget),
+        show=overrides.get("show"),
     )
     return api, calls
 
@@ -1198,3 +1199,93 @@ def test_ledger_refiling_same_path_does_not_duplicate(tmp_path, monkeypatch):
     meeting_state.record_filed("m1", "Acme", Path("/x/a.md"))
     meeting_state.record_filed("m1", "Acme", Path("/x/a.md"))
     assert len(meeting_state.get("m1").filed) == 1
+
+
+def test_launcher_bundle_runs_the_tool_with_show(tmp_path):
+    import plistlib
+    import subprocess
+
+    from fly_transcriber import launcher
+
+    marker = tmp_path / "args"
+    tool = tmp_path / "fly tool"  # a space: the path must be quoted
+    tool.write_text(f'#!/bin/sh\necho "$@" > "{marker}"\n')
+    tool.chmod(0o755)
+
+    app = launcher.install_launcher((tmp_path / "Apps",), tool)
+
+    assert app == tmp_path / "Apps" / "FLY.app"
+    info = plistlib.loads((app / "Contents" / "Info.plist").read_bytes())
+    assert info["CFBundleIdentifier"] == launcher.BUNDLE_ID
+    assert info["LSUIElement"] is True  # no Dock icon
+    assert (app / "Contents" / "Resources" / "FLY.icns").exists()
+    subprocess.run([str(app / "Contents" / "MacOS" / "FLY")], check=True)
+    assert marker.read_text().strip() == "--show"
+
+
+def test_launcher_falls_back_when_first_folder_is_not_writable(tmp_path):
+    from fly_transcriber import launcher
+
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    try:
+        app = launcher.install_launcher((locked, tmp_path / "home"), tmp_path / "tool")
+    finally:
+        locked.chmod(0o700)
+    assert app.parent == tmp_path / "home"
+    assert not (locked / "FLY.app").exists()
+
+
+def test_launcher_reinstall_moves_rather_than_duplicates(tmp_path):
+    from fly_transcriber import launcher
+
+    first, second = tmp_path / "a", tmp_path / "b"
+    launcher.install_launcher((first, second), tmp_path / "tool")
+    assert (first / "FLY.app").exists()
+    first.chmod(0o500)  # now unwritable: the second install lands in b
+    try:
+        launcher.install_launcher((first, second), tmp_path / "tool")
+    finally:
+        first.chmod(0o700)
+    assert (second / "FLY.app").exists()
+
+
+def test_launcher_removal_only_touches_our_bundle(tmp_path):
+    from fly_transcriber import launcher
+
+    foreign = tmp_path / "FLY.app" / "Contents"
+    foreign.mkdir(parents=True)
+    (foreign / "Info.plist").write_bytes(b"not ours")
+    assert launcher.remove_launcher((tmp_path,)) == []
+    assert foreign.exists()
+
+    (tmp_path / "FLY.app").rename(tmp_path / "other.app")
+    launcher.install_launcher((tmp_path,), tmp_path / "tool")
+    assert launcher.remove_launcher((tmp_path,)) == [tmp_path / "FLY.app"]
+    assert (tmp_path / "other.app").exists()
+
+
+def test_second_launch_brings_the_running_app_forward():
+    from fly_transcriber.server import APP_ID, show_running_instance
+
+    shown = []
+    api, _ = _stub_api(show=lambda: shown.append(1) or {"ok": True, "app": APP_ID})
+    base, server = _client(api)
+    try:
+        assert show_running_instance(port=server.server_address[1])
+        assert shown == [1]
+    finally:
+        server.shutdown()
+
+
+def test_show_ignores_a_stranger_on_the_port():
+    from fly_transcriber.server import show_running_instance
+
+    api, _ = _stub_api(show=lambda: {"ok": True})  # answers, but is not FLY
+    base, server = _client(api)
+    try:
+        assert not show_running_instance(port=server.server_address[1])
+    finally:
+        server.shutdown()
+    assert not show_running_instance(port=1)  # nothing listening

@@ -5,13 +5,15 @@
 #
 # Installs uv (if missing), ffmpeg (via Homebrew), ownscribe and the app, the
 # speaker model (no HuggingFace account needed) and the speech models, then
-# registers a login item so the menubar icon starts with your Mac.
+# registers a login item so the menubar icon starts with your Mac and adds FLY
+# to Applications (/Applications when you may write there, else ~/Applications)
+# so it can be opened from Spotlight after quitting.
 #
 # Options:
 #   --no-login-item   don't start the app at login
 #   --no-warmup       skip the ~3 GB speech model download; it then happens
 #                     during the first recording instead
-#   --uninstall       remove the app, its login item, models and ownscribe
+#   --uninstall       remove the app, its login item, FLY.app, models and ownscribe
 #                     (settings, recordings and transcripts are kept)
 set -eu
 
@@ -68,6 +70,9 @@ unload_login_item() {
 if [ "$action" = uninstall ]; then
   say "Removing login item"
   unload_login_item
+  if [ -x "$BIN_DIR/fly-transcriber" ]; then
+    "$BIN_DIR/fly-transcriber" uninstall-launcher || true
+  fi
   pkill -f "$BIN_DIR/fly-transcriber" 2>/dev/null || true
   if command -v uv >/dev/null 2>&1; then
     say "Uninstalling the app and ownscribe"
@@ -143,6 +148,12 @@ if [ "$warmup" -eq 1 ]; then
     || warn "Model download failed; it will be retried during the first recording."
 fi
 
+# -- FLY.app ------------------------------------------------------------------
+
+say "Adding FLY to Applications"
+"$BIN_DIR/fly-transcriber" install-launcher \
+  || warn "Could not add FLY to Applications. The menubar app still works; start it with: fly-transcriber"
+
 # -- login item --------------------------------------------------------------
 
 unload_login_item
@@ -175,6 +186,7 @@ fi
 
 echo
 echo "Installed. Look for the FLY icon (a microphone with wings) in the menubar."
+echo "If you quit it, open FLY again from Spotlight (Cmd-Space, type FLY)."
 echo
 echo "Your first recording asks for microphone and system audio permission."
 if [ "$speaker_model" -eq 0 ]; then

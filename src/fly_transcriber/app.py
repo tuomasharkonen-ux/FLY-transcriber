@@ -14,10 +14,11 @@ from .config import Settings, apply_ownscribe_config, load_settings, save_settin
 from .diarization import check_diarization
 from .dialogs import ask_text
 from .filing import file_meeting
+from .launcher import install_launcher, remove_launcher
 from .meetings import list_meetings, parse_meeting_dir
 from .projects import DEFAULT_INBOX, create_project, install_agent_files, slugify
 from .recorder import Phase, RunState, Recorder, resolve_ownscribe
-from .server import Api, serve_in_background
+from .server import APP_ID, Api, serve_in_background, show_running_instance
 from .shell import Shell, alert, call_on_main
 from .transcript import merge_speakers, resolve_merges, speakers
 from .transcript import samples as transcript_samples
@@ -54,7 +55,8 @@ class MeetingRecorderApp:
 
         self._server, self.dashboard_url = self._start_server()
         self.shell = Shell(
-            self.dashboard_url, menu=self._menu, confirm_quit=self._confirm_quit
+            self.dashboard_url, menu=self._menu, confirm_quit=self._confirm_quit,
+            on_reopen=self._show_dashboard,
         )
 
         self._refresh_awaiting()
@@ -63,8 +65,15 @@ class MeetingRecorderApp:
         # mutation happens here, on the main thread, driven by this timer.
         self.shell.every(1.0, self._tick)
 
-    def run(self) -> None:
+    def run(self, show: bool = False) -> None:
+        if show:
+            # Opened by hand (Spotlight, Finder): the menubar icon can be hidden
+            # behind the notch or other icons, so show something that cannot be.
+            call_on_main(self._show_dashboard)
         self.shell.run()
+
+    def _show_dashboard(self) -> None:
+        self.shell.open_window()
 
     # -- right-click menu ----------------------------------------------------
 
@@ -204,6 +213,7 @@ class MeetingRecorderApp:
             reveal=self._api_reveal,
             dismiss=self._api_dismiss,
             record=self._api_record,
+            show=self._api_show,
         )
         try:
             return serve_in_background(api)
@@ -370,6 +380,11 @@ class MeetingRecorderApp:
             "markdown": render_turns(turns, entry.speaker_names),
         }
 
+    def _api_show(self) -> dict:
+        """A second launch asks the running instance to come forward."""
+        call_on_main(self._show_dashboard)
+        return {"ok": True, "app": APP_ID}
+
     def _api_reveal(self, name: str) -> dict:
         directory = self._meeting_directory(name)
         subprocess.run(["open", str(directory)], check=False)
@@ -534,11 +549,18 @@ def main() -> None:
     if args == ["warmup"]:
         _extend_path()
         sys.exit(_warmup())
-    if args:
+    if args == ["install-launcher"]:
+        sys.exit(_install_launcher())
+    if args == ["uninstall-launcher"]:
+        sys.exit(_uninstall_launcher())
+    if args not in ([], ["--show"]):
         print(USAGE, file=sys.stderr)
         sys.exit(2)
+    # Already running? Then this launch only brings that instance forward.
+    if show_running_instance():
+        sys.exit(0)
     _extend_path()
-    MeetingRecorderApp().run()
+    MeetingRecorderApp().run(show=args == ["--show"])
 
 
 #: Where ``uv tool install`` and Homebrew put executables. Started as a login
@@ -555,11 +577,30 @@ def _extend_path() -> None:
         os.environ["PATH"] = os.pathsep.join([*current, *missing])
 
 
-USAGE = """usage: fly-transcriber                        start the menubar app
+USAGE = """usage: fly-transcriber [--show]                start the menubar app (--show
+                                               also opens the dashboard)
        fly-transcriber install-agent <folder>  add CLAUDE.md and the agent skill
                                                to an existing project folder
        fly-transcriber warmup                  download the speech models now,
-                                               not during the first recording"""
+                                               not during the first recording
+       fly-transcriber install-launcher        add FLY.app to Applications
+       fly-transcriber uninstall-launcher      remove it again"""
+
+
+def _install_launcher() -> int:
+    try:
+        path = install_launcher()
+    except OSError as exc:
+        print(f"Could not add FLY to Applications: {exc}", file=sys.stderr)
+        return 1
+    print(f"Added {path}")
+    return 0
+
+
+def _uninstall_launcher() -> int:
+    for path in remove_launcher():
+        print(f"Removed {path}")
+    return 0
 
 
 def _warmup() -> int:

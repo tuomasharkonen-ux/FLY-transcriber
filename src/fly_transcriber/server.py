@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
@@ -48,6 +49,7 @@ class Api:
         reveal: Callable[[str], dict] | None = None,
         dismiss: Callable[[str], dict] | None = None,
         record: Callable[[], dict] | None = None,
+        show: Callable[[], dict] | None = None,
     ) -> None:
         self.snapshot = snapshot
         self.file_meeting = file_meeting
@@ -57,6 +59,7 @@ class Api:
         self.reveal = reveal or _unsupported
         self.dismiss = dismiss or _unsupported
         self.record = record or _unsupported
+        self.show = show or _unsupported
 
 
 def _unsupported(*_args) -> dict:
@@ -131,6 +134,8 @@ class _Handler(BaseHTTPRequestHandler):
                 result = self.api.dismiss(payload.get("meeting", ""))
             elif path == "/api/record":
                 result = self.api.record()
+            elif path == "/api/show":
+                result = self.api.show()
             elif path == "/api/reveal":
                 result = self.api.reveal(payload.get("meeting", ""))
             else:
@@ -161,3 +166,21 @@ def serve_in_background(api: Api, port: int = DEFAULT_PORT) -> tuple[ThreadingHT
     server = make_server(api, port)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_address[1]}/"
+
+
+#: What /api/show answers, so a launcher knows it reached FLY and not some
+#: other program that happens to hold the port.
+APP_ID = "fly-transcriber"
+
+
+def show_running_instance(port: int = DEFAULT_PORT, timeout: float = 1.0) -> bool:
+    """Ask an already-running FLY to come forward. True if one answered."""
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/show", data=b"{}", method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.load(response).get("app") == APP_ID
+    except (OSError, ValueError):  # refused, timed out, 404, not JSON...
+        return False

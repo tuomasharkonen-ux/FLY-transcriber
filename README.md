@@ -64,10 +64,13 @@ The script checks your Mac meets the requirements and then:
    transcription engine) and this app as `uv` tools,
 3. downloads the speaker model (30 MB) and the speech models (about 3 GB), so
    your first recording starts straight away,
-4. adds a login item so the app starts with your Mac, and starts it now.
+4. adds `FLY.app` to `/Applications` (or `~/Applications` if your account can't
+   write there), and a login item so the app starts with your Mac, and starts
+   it now.
 
 No accounts or tokens are needed. Look for the FLY icon (a microphone with
-wings) in the menubar.
+wings) in the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to
+bring it back; opening it while it is running just shows the dashboard.
 
 Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 
@@ -192,7 +195,7 @@ right-click menu.
 curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh -s -- --uninstall
 ```
 
-This removes the app, ownscribe, the speaker model and the login item. Your
+This removes the app, `FLY.app`, ownscribe, the speaker model and the login item. Your
 settings, recordings and the speech models are kept; delete
 `~/.config/fly-transcriber`, `~/ownscribe` and `~/.cache/huggingface` yourself
 if you want them gone.
