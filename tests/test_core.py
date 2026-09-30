@@ -985,6 +985,7 @@ def _stub_api(**overrides):
         save_settings=overrides.get("save_settings", save_settings),
         forget=overrides.get("forget", forget),
         show=overrides.get("show"),
+        delete=overrides.get("delete"),
     )
     return api, calls
 
@@ -1295,3 +1296,18 @@ def test_show_ignores_a_stranger_on_the_port():
     finally:
         server.shutdown()
     assert not show_running_instance(port=1)  # nothing listening
+
+
+def test_delete_route_reaches_the_api():
+    deleted = []
+    api, _ = _stub_api(delete=lambda name: deleted.append(name) or {"ok": True})
+    base, server = _client(api)
+    try:
+        req = urllib.request.Request(
+            base + "/api/delete", data=b'{"meeting": "2026-09-28_0900"}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert json.loads(urllib.request.urlopen(req).read()) == {"ok": True}
+        assert deleted == ["2026-09-28_0900"]
+    finally:
+        server.shutdown()

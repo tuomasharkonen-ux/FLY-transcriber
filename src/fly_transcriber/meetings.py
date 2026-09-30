@@ -129,3 +129,17 @@ def list_meetings(output_dir: Path, limit: int | None = None) -> list[Meeting]:
         key=lambda m: (m.started or datetime.min, m.directory.name), reverse=True
     )
     return meetings[:limit] if limit else meetings
+
+
+def move_to_trash(path: Path) -> None:
+    """Put ``path`` in the Trash, where it can still be recovered.
+
+    Raises ``OSError`` if macOS refuses.
+    """
+    from Foundation import NSURL, NSFileManager
+
+    ok, _url, error = NSFileManager.defaultManager().trashItemAtURL_resultingItemURL_error_(
+        NSURL.fileURLWithPath_(str(path)), None, None
+    )
+    if not ok:
+        raise OSError(str(error) if error else f"could not move {path} to the Trash")

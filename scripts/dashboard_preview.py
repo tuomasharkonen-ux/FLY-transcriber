@@ -98,6 +98,6 @@ def dismiss(name):
 if __name__ == "__main__":
     api = Api(snapshot=snapshot, file_meeting=file_meeting, save_settings=lambda p: {"ok": True},
               forget=lambda n: {"ok": True}, meeting_detail=detail, reveal=lambda n: {"ok": True},
-              dismiss=dismiss, record=record)
+              dismiss=dismiss, record=record, delete=lambda n: {"ok": True})
     print(f"http://127.0.0.1:{PORT}/")
     make_server(api, PORT).serve_forever()

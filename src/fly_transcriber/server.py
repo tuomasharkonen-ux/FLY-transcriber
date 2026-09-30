@@ -50,6 +50,7 @@ class Api:
         dismiss: Callable[[str], dict] | None = None,
         record: Callable[[], dict] | None = None,
         show: Callable[[], dict] | None = None,
+        delete: Callable[[str], dict] | None = None,
     ) -> None:
         self.snapshot = snapshot
         self.file_meeting = file_meeting
@@ -60,6 +61,7 @@ class Api:
         self.dismiss = dismiss or _unsupported
         self.record = record or _unsupported
         self.show = show or _unsupported
+        self.delete = delete or _unsupported
 
 
 def _unsupported(*_args) -> dict:
@@ -134,6 +136,8 @@ class _Handler(BaseHTTPRequestHandler):
                 result = self.api.dismiss(payload.get("meeting", ""))
             elif path == "/api/record":
                 result = self.api.record()
+            elif path == "/api/delete":
+                result = self.api.delete(payload.get("meeting", ""))
             elif path == "/api/show":
                 result = self.api.show()
             elif path == "/api/reveal":

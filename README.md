@@ -88,6 +88,11 @@ If you'd rather read the script before running it, download
 Your first recording asks for **microphone** and **system audio** access.
 Allow both. Without system audio, the other people on a call aren't recorded.
 
+macOS may name the app **python3.12** in these prompts, for example "python3.12
+wants to bypass the system's private window picker and access screen and audio
+directly". That is FLY: it runs on Python, and macOS shows the name of the
+program, not of the app. The wording of that prompt is fixed by macOS.
+
 ### Tell it about your vocabulary
 
 Open **Settings** (the sliders icon in the panel) and fill in **Vocabulary
@@ -206,6 +211,8 @@ if you want them gone.
   on Core Audio taps.
 - **Meetings are named by hand** at saving. An unnamed meeting is saved as
   `28-09-26-meeting-1420.md`.
+- **Permission prompts say "python3.12"**, not "FLY", for the same reason: FLY
+  is not yet a packaged, signed Mac app.
 - **No macOS notifications** unless the app runs as a signed bundle. The
   menubar icon is the status indicator.
 

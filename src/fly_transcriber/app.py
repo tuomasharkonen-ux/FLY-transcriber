@@ -15,7 +15,7 @@ from .diarization import check_diarization
 from .dialogs import ask_text
 from .filing import file_meeting
 from .launcher import install_launcher, remove_launcher
-from .meetings import list_meetings, parse_meeting_dir
+from .meetings import list_meetings, move_to_trash, parse_meeting_dir
 from .projects import DEFAULT_INBOX, create_project, install_agent_files, slugify
 from .recorder import Phase, RunState, Recorder, resolve_ownscribe
 from .server import APP_ID, Api, serve_in_background, show_running_instance
@@ -214,6 +214,7 @@ class MeetingRecorderApp:
             dismiss=self._api_dismiss,
             record=self._api_record,
             show=self._api_show,
+            delete=self._api_delete,
         )
         try:
             return serve_in_background(api)
@@ -398,6 +399,24 @@ class MeetingRecorderApp:
         return {"ok": True}
 
     def _api_forget(self, name: str) -> dict:
+        meeting_state.forget(name)
+        self._needs_refresh = True
+        return {"ok": True}
+
+    def _api_delete(self, name: str) -> dict:
+        """Move a recording's folder to the Trash and forget what we knew of it.
+
+        Notes already saved into projects are separate files and stay.
+        """
+        directory = self._meeting_directory(name)
+        run = self.recorder.state
+        # Same test the list uses to show a recording as "processing".
+        if run.is_active and (
+            run.meeting_dir == directory
+            or (run.meeting_dir is None and not parse_meeting_dir(directory).has_transcript)
+        ):
+            raise ValueError("This recording is still being processed")
+        move_to_trash(directory)
         meeting_state.forget(name)
         self._needs_refresh = True
         return {"ok": True}

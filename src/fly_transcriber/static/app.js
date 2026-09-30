@@ -78,7 +78,7 @@ const TopBar = ({ route, run }) => {
 
 // -- recordings list --------------------------------------------------------
 
-const RecordingRow = ({ meeting, onFile, toast }) => {
+const RecordingRow = ({ meeting, onFile, onDelete }) => {
   const st = status(meeting);
   const canAct = meeting.has_transcript && !meeting.processing;
   const meta = [meeting.when, meeting.duration ? fmtDuration(meeting.duration) : null];
@@ -100,17 +100,60 @@ const RecordingRow = ({ meeting, onFile, toast }) => {
       <${Pill} tone=${st.tone}>${st.label}<//>
       <div class="row-actions">
         ${canAct && html`
-          <${Button} size="sm" variant=${meeting.filed.length ? "secondary" : "primary"} icon="send"
-            onClick=${stop(() => onFile(meeting))}>${meeting.filed.length ? "Edit" : "Save"}<//>
-          <${IconButton} icon="copy" label="Copy transcript"
-            onClick=${stop(() => copyTranscript(meeting, toast))} />`}
+          <${Button} size="sm" variant=${meeting.filed.length ? "secondary" : "primary"}
+            onClick=${stop(() => onFile(meeting))}>${meeting.filed.length ? "Edit" : "Save"}<//>`}
+        ${!meeting.processing && html`
+          <${IconButton} icon="trash" label="Delete recording"
+            onClick=${stop(() => onDelete(meeting))} />`}
         <${IconButton} icon="chevron" label="Open" onClick=${stop(open)} />
       </div>
     </li>`;
 };
 
+const DeleteDialog = ({ meeting, onClose, toast }) => {
+  const ref = useRef();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { ref.current.showModal(); }, []);
+
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/delete", { meeting: meeting.name });
+      toast("Moved to the Trash");
+      ref.current.close();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  return html`
+    <dialog class="dialog dialog-narrow" ref=${ref} onClose=${onClose}
+      onClick=${(e) => e.target === ref.current && ref.current.close()}>
+      <div class="dialog-body">
+        <div class="dialog-head">
+          <h2>Delete this recording?</h2>
+        </div>
+        <p>
+          <strong>${meeting.title || "Untitled recording"}</strong>${meeting.when ? ` (${meeting.when})` : ""}${" "}
+          and its transcript${meeting.has_audio ? " and audio" : ""} move to the Trash.
+          ${meeting.filed.length > 0 ? " Notes already saved to your projects are kept." : ""}
+        </p>
+        ${error && html`<div class="error-text">${error}</div>`}
+        <div class="dialog-foot">
+          <${Button} onClick=${() => ref.current.close()}>Cancel<//>
+          <${Button} variant="danger" disabled=${busy} onClick=${remove}>${busy ? "Deleting…" : "Delete"}<//>
+        </div>
+      </div>
+    </dialog>`;
+};
+
 const RecordingsView = ({ meetings, onFile, toast }) => {
   const unfiled = meetings.filter(awaitsFiling).length;
+  const [deleting, setDeleting] = useState(null);
   return html`
     <section class="page">
       <div class="page-head">
@@ -125,11 +168,12 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
       </div>
       ${meetings.length
         ? html`<ul class="list">
-            ${meetings.map((m) => html`<${RecordingRow} key=${m.name} meeting=${m} onFile=${onFile} toast=${toast} />`)}
+            ${meetings.map((m) => html`<${RecordingRow} key=${m.name} meeting=${m} onFile=${onFile} onDelete=${setDeleting} />`)}
           </ul>`
         : html`<${Empty} title="No recordings yet">
             Click the FLY icon in the menubar to start one. Finished transcripts show up here.
           <//>`}
+      ${deleting && html`<${DeleteDialog} meeting=${deleting} toast=${toast} onClose=${() => setDeleting(null)} />`}
     </section>`;
 };
 
@@ -206,7 +250,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
           <${IconButton} icon="folder" label="Show in Finder" onClick=${reveal} />
           ${canAct && html`
             <${Button} icon="copy" onClick=${() => copyTranscript(meeting, toast)}>Copy<//>
-            <${Button} variant="primary" icon="send" onClick=${() => onFile(meeting)}>
+            <${Button} variant="primary" onClick=${() => onFile(meeting)}>
               ${meeting.filed.length ? "Edit" : "Save"}
             <//>`}
         </div>
