@@ -316,6 +316,8 @@
   .cmd { margin-top: 30px; padding: 22px 26px; border-radius: 18px; background: var(--bg-2); border: 1px solid var(--green);
     font: 16.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); white-space: pre; }
   .cmd .pr { color: var(--green-hi); user-select: none; }
+  .cmd-label { font-size: 22px; color: var(--text-2); margin: 28px 0 12px; }
+  .cmd-label + .cmd { margin-top: 0; }
   .cmd-note { margin-top: 14px; font-size: 19px; color: var(--text-2); }
   .reqs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin-top: 36px; }
   .req { display: flex; align-items: center; gap: 16px; font-size: 21px; }
@@ -579,6 +581,7 @@
   <section class="slide">
     <div class="kicker a">Get started</div>
     <h2 class="a" style="--d:.1s">Install in one line</h2>
+    <p class="cmd-label a" style="--d:.2s">Run this in your terminal</p>
     <div class="cmd a" style="--d:.3s"><span class="pr">$ </span>curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh \
     | sh</div>
     <p class="cmd-note a" style="--d:.5s">Installs the app and the speech models, and adds FLY to Applications and a login item. No accounts or tokens.</p>

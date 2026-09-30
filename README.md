@@ -59,6 +59,8 @@ things up, while your own agent has the project context and a stronger model.
 
 ## Install
 
+Run this in your terminal:
+
 ```bash
 curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh
 ```
