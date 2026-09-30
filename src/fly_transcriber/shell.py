@@ -226,6 +226,7 @@ class Shell:
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
         # NSApplication holds its delegate weakly, so keep a reference.
+        self._confirm_quit = confirm_quit
         self._delegate = _AppDelegate.alloc().initWithGuard_reopen_(
             confirm_quit, on_reopen
         )
@@ -450,6 +451,10 @@ class Shell:
             self.close_popover()
         elif kind == "open":
             self.open_window(str(data.get("route") or "#/"))
+        elif kind == "quit":
+            self.close_popover()  # the confirmation must not open behind it
+            if self._confirm_quit():
+                self.quit()
 
     def _target(self, callback: Callable) -> _Action:
         target = _Action.alloc().initWithCallback_(callback)

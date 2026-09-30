@@ -171,7 +171,10 @@ export const Logo = ({ size = 28 }) => html`
 /** Present when the page runs inside the app's WKWebView, not a browser. */
 const bridge = window.webkit?.messageHandlers?.fly;
 
-/** Ask the shell for something only it can do: resize, close, open the window. */
+/** True inside the app; in a browser tab there is no shell to quit. */
+export const inApp = Boolean(bridge);
+
+/** Ask the shell for something only it can do: resize, close, open the window, quit. */
 export function native(message) {
   if (bridge) bridge.postMessage(message);
   else if (message.type === "open") window.open(`/${message.route || ""}`, "_blank");

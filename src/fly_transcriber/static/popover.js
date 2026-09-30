@@ -5,7 +5,7 @@
 import { html, render, useEffect, useRef, useState } from "./vendor/htm-preact-3.1.1.js";
 import {
   BRAND, BRAND_TEXT, Button, FilingFields, Icon, IconButton, Logo, Pill, RunBar, Toasts, api, awaitsFiling,
-  fmtDuration, native, status, useFilingForm, useToasts,
+  fmtDuration, inApp, native, status, useFilingForm, useToasts,
 } from "./common.js";
 
 const POLL_MS = 1000;
@@ -91,6 +91,7 @@ const ListView = ({ state, run, onFile, onToggle }) => {
 
     <footer class="pfoot">
       <${Button} variant="ghost" size="sm" onClick=${() => open("#/")}>Open FLY<//>
+      ${inApp && html`<${Button} variant="ghost" size="sm" onClick=${() => native({ type: "quit" })}>Quit<//>`}
     </footer>`;
 };
 

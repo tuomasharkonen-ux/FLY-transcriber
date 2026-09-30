@@ -127,7 +127,8 @@ button.rec-live:hover { background: color-mix(in srgb, var(--danger) 88%, #000);
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin: 0 -12px; padding: 8px 12px 0; border-top: 1px solid var(--glass-line);
 }
-.pfoot .btn-ghost { margin-left: -6px; }
+.pfoot .btn-ghost:first-child { margin-left: -6px; }
+.pfoot .btn-ghost:last-child:not(:first-child) { margin-right: -6px; }
 
 /* -- filing ---------------------------------------------------------------- */
 
