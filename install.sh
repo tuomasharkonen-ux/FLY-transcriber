@@ -115,7 +115,9 @@ EOF
 # True if the default speech model is already in the HuggingFace cache (a
 # reinstall or update), so there is nothing big left to ask about.
 speech_model_cached() {
-  ls "$HOME"/.cache/huggingface/hub/models--Systran--faster-whisper-large-v3/snapshots/*/model.bin >/dev/null 2>&1
+  # The MLX weights, which v0.5.0 and later transcribe with. An update from an
+  # earlier release has only faster-whisper's, and is asked like a fresh install.
+  ls "$HOME"/.cache/huggingface/hub/models--mlx-community--whisper-large-v3-mlx/snapshots/*/weights.npz >/dev/null 2>&1
 }
 
 # Prints the newest v* tag (empty if it cannot be found). Sorted by number, so
@@ -217,10 +219,10 @@ keep using your Mac meanwhile, but leave this window open until it says
 "FLY is installed".
 
 EOF
-printf '\033[2m%s\033[0m\n\n' \
-  "For the technically minded: installs uv, ownscribe (WhisperX + pyannote) and" \
-  "FLY as uv tools under ~/.local, models under ~/.local/share/fly-transcriber" \
-  "and ~/.cache/huggingface, FLY.app and a LaunchAgent."
+printf '\033[2m%s\n%s\n%s\033[0m\n\n' \
+  "For the technically minded: installs uv, ownscribe (WhisperX + pyannote, with" \
+  "MLX Whisper) and FLY as uv tools under ~/.local, models under ~/.local/share/" \
+  "fly-transcriber and ~/.cache/huggingface, FLY.app and a LaunchAgent."
 
 if speech_model_cached; then
   warmup=1
@@ -293,9 +295,8 @@ fi
 
 if [ "$warmup" -eq 1 ]; then
   step 4 "Downloading the speech models (about 3 GB; this is the long part)"
-  detail "Whisper large-v3 (MLX, or faster-whisper before v0.5.0) and a wav2vec2" \
-    "word-alignment model from Hugging Face into ~/.cache/huggingface" \
-    "(fly-transcriber warmup)"
+  detail "Whisper large-v3 (MLX) and a wav2vec2 word-alignment model" \
+    "from Hugging Face into ~/.cache/huggingface (fly-transcriber warmup)"
   if ! "$BIN_DIR/fly-transcriber" warmup; then
     warmup=0
     warn "The speech models did not download. FLY retries during your first recording, or run the install command again."
