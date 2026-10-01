@@ -23,7 +23,7 @@ from enum import Enum
 from pathlib import Path
 
 from . import progress
-from .config import Settings
+from .config import Settings, ensure_private_dir
 from .diarization import MODELS_DIR, has_local_model
 
 # Strips the cursor moves and colour codes ownscribe's live progress display emits.
@@ -112,8 +112,8 @@ class Recorder:
                 raise RuntimeError("A recording is already in progress")
             self.state = RunState(phase=Phase.STARTING, started_at=time.time())
 
-        out_dir = self._settings.resolved_output_dir
-        out_dir.mkdir(parents=True, exist_ok=True)
+        # Recordings and transcripts are for this account only.
+        out_dir = ensure_private_dir(self._settings.resolved_output_dir)
         # Snapshot existing meeting dirs so the new one can be identified later;
         # ownscribe renames it to include a generated title once it has a summary.
         self._known_dirs = {p for p in out_dir.iterdir() if p.is_dir()}

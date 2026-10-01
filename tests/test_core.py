@@ -1483,3 +1483,133 @@ def test_bundled_ffmpeg_is_linked_and_runs(tmp_path):
     assert link_bundled_ffmpeg(tmp_path / "bin") == link  # idempotent
     out = subprocess.run([str(link), "-version"], capture_output=True, text=True)
     assert out.returncode == 0 and out.stdout.startswith("ffmpeg version")
+
+
+# -- hardening -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("frontmatter", ["obsidian", "generic"])
+def test_frontmatter_survives_titles_and_names_people_type(tmp_path, frontmatter):
+    import yaml
+
+    d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
+    project = Project(
+        name="Acme", path=str(tmp_path / "inbox"), frontmatter=frontmatter, tags=["acme: q4"]
+    )
+    title = 'Acme: kickoff #3 [draft]\nstatus: done'
+    participants = ["Sam, the PM", "O'Brien", "yes", "2026"]
+    note = file_meeting(
+        parse_meeting_dir(d), project, participants=participants, title=title,
+        speaker_names={"SPEAKER_00": "Aino: host", "SPEAKER_01": "Alex"},
+    ).path.read_text(encoding="utf-8")
+
+    meta = yaml.safe_load(note.split("---")[1])
+    assert meta["title"] == "Acme: kickoff #3 [draft] status: done"
+    assert meta["status"] == "raw"  # a newline in the title cannot add a field
+    assert meta["participants"] == participants
+    assert meta["speakers"] == ["Aino: host", "Alex"]
+    assert meta["source"] == str(d)
+    assert "# Acme: kickoff #3 [draft] status: done\n" in note
+
+
+def test_yaml_str_leaves_plain_text_bare():
+    from fly_transcriber.filing import yaml_str
+
+    assert yaml_str("Design review") == "Design review"
+    assert yaml_str("Q&A with O'Brien (UX)") == "Q&A with O'Brien (UX)"
+    assert yaml_str("Ääkköset") == "Ääkköset"
+    assert yaml_str("Acme: kickoff") == '"Acme: kickoff"'
+    assert yaml_str("no") == '"no"'
+    assert yaml_str("") == '""'
+
+
+def test_server_pages_cannot_be_framed_by_other_sites():
+    api, _ = _stub_api()
+    base, server = _client(api)
+    try:
+        for path in ("/", "/popover.html", "/api/state"):
+            headers = urllib.request.urlopen(base + path).headers
+            assert headers["X-Frame-Options"] == "SAMEORIGIN"
+            assert "frame-ancestors 'self'" in headers["Content-Security-Policy"]
+            assert headers["X-Content-Type-Options"] == "nosniff"
+    finally:
+        server.shutdown()
+
+
+def test_server_ignores_bad_or_huge_content_length():
+    import socket
+
+    calls = []
+    api, _ = _stub_api(delete=lambda n: calls.append(n) or {"ok": True})
+    base, server = _client(api)
+    port = server.server_address[1]
+    try:
+        for length in ("nonsense", "999999999"):
+            with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+                sock.sendall(
+                    f"POST /api/delete HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n"
+                    f"Content-Type: application/json\r\nContent-Length: {length}\r\n\r\n".encode()
+                )
+                assert b" 200 " in sock.recv(4096).split(b"\r\n")[0] + b" "
+        assert calls == ["", ""]  # read as an empty request, not a hang or crash
+    finally:
+        server.shutdown()
+
+
+def test_generated_ownscribe_config_is_not_backed_up_again(tmp_path, monkeypatch):
+    import tomllib
+
+    cfg = tmp_path / "ownscribe" / "config.toml"
+    monkeypatch.setattr(appconfig, "OWNSCRIBE_CONFIG_DIR", cfg.parent)
+    monkeypatch.setattr(appconfig, "OWNSCRIBE_CONFIG_PATH", cfg)
+    monkeypatch.setattr(appconfig, "read_hf_token", lambda: "hf_secret")
+
+    for _ in range(3):  # once per recording
+        appconfig.apply_ownscribe_config(Settings())
+
+    assert list(cfg.parent.glob("config.toml.bak-*")) == []
+    assert tomllib.loads(cfg.read_text(encoding="utf-8"))["diarization"]["hf_token"] == "hf_secret"
+    assert cfg.stat().st_mode & 0o077 == 0
+    assert cfg.parent.stat().st_mode & 0o077 == 0
+
+
+def test_private_write_tightens_an_existing_readable_file(tmp_path):
+    path = tmp_path / "secret"
+    path.write_text("old")
+    path.chmod(0o644)
+    appconfig.write_private(path, b"new")
+    assert path.read_bytes() == b"new"
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_private_dir_is_owner_only(tmp_path):
+    folder = tmp_path / "ownscribe"
+    folder.mkdir(mode=0o755)
+    assert appconfig.ensure_private_dir(folder) == folder
+    assert folder.stat().st_mode & 0o777 == 0o700
+    assert appconfig.ensure_private_dir(tmp_path / "new" / "dir").is_dir()
+
+
+def test_launcher_names_the_tool_relative_to_home(tmp_path, monkeypatch):
+    """/Applications is shared: each account must run its own copy of the tool."""
+    from fly_transcriber import launcher
+
+    home = tmp_path / "home"
+    marker = tmp_path / "args"
+    tool = home / ".local" / "bin" / "fly tool"
+    tool.parent.mkdir(parents=True)
+    tool.write_text(f'#!/bin/sh\necho "$@" > "{marker}"\n')
+    tool.chmod(0o755)
+    monkeypatch.setenv("HOME", str(home))
+
+    app = launcher.install_launcher((tmp_path / "Apps",), tool)
+    stub = app / "Contents" / "MacOS" / "FLY"
+    assert str(home) not in stub.read_text()
+    assert '"$HOME"/' in stub.read_text()
+
+    subprocess.run([str(stub)], check=True, env={"HOME": str(home), "PATH": "/usr/bin:/bin"})
+    for _ in range(50):
+        if marker.exists() and marker.read_text().strip():
+            break
+        time.sleep(0.1)
+    assert marker.read_text().strip() == "--show"

@@ -18,7 +18,8 @@
 #   --no-warmup       download them later, during the first recording, without
 #                     asking (otherwise the script asks; with no keyboard to ask
 #                     on, it downloads now)
-#   FLY_VERSION=v0.2.0 (environment) install that release instead of the latest
+#   FLY_VERSION=v0.2.0 (environment) install that release instead of the latest;
+#                     FLY_VERSION=main installs work in progress
 #   --uninstall       remove the app, its login item, FLY.app, models and ownscribe
 #                     (settings, recordings and transcripts are kept)
 set -eu
@@ -113,12 +114,19 @@ speech_model_cached() {
   ls "$HOME"/.cache/huggingface/hub/models--Systran--faster-whisper-large-v3/snapshots/*/model.bin >/dev/null 2>&1
 }
 
-# Prints the newest v* tag (empty if none or offline). Sorted by number, so
-# v0.10.0 beats v0.9.0.
+# Prints the newest v* tag (empty if it cannot be found). Sorted by number, so
+# v0.10.0 beats v0.9.0. GitHub's API allows 60 requests an hour per network,
+# which a shared office connection can use up, so the release GitHub marks as
+# latest (a web redirect, not the API) is the fallback.
 latest_release() {
-  curl -fsSL -m 20 "https://api.github.com/repos/${REPO#https://github.com/}/tags?per_page=100" 2>/dev/null \
+  tag="$(curl -fsSL -m 20 "https://api.github.com/repos/${REPO#https://github.com/}/tags?per_page=100" 2>/dev/null \
     | sed -n 's/.*"name": *"\(v[0-9][^"]*\)".*/\1/p' \
-    | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -n 1
+    | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -n 1)" || tag=""
+  if [ -z "$tag" ]; then
+    tag="$(curl -fsSLI -m 20 -o /dev/null -w '%{url_effective}' "$REPO/releases/latest" 2>/dev/null \
+      | sed -n 's|.*/releases/tag/\(v[0-9][^/]*\)$|\1|p')" || tag=""
+  fi
+  printf '%s\n' "$tag"
 }
 
 # Checks every model file against MODEL_SHA256; $1 is the model directory.
@@ -235,18 +243,20 @@ uv tool install -q --python "$PYTHON" --upgrade "$OWNSCRIBE"
 # The newest v* tag is the latest release. Tags only, so the speaker model's
 # own release (speaker-model-v1) is never mistaken for one. Installed from
 # GitHub's source archive rather than with git (see the top of the script).
+# Work in progress on main is installed only when asked for (FLY_VERSION=main),
+# never as a fallback: a lookup that fails must not hand anyone untested code.
 ref="${FLY_VERSION:-}"
 if [ -z "$ref" ]; then
   ref="$(latest_release)"
+  [ -n "$ref" ] || fail "Could not find the latest FLY release on GitHub. Check the internet connection and run the install command again in a few minutes."
 fi
 stop_running_app
-if [ -n "$ref" ]; then
-  step 2 "Installing the FLY app ($ref)"
-  archive="$REPO/archive/refs/tags/$ref.tar.gz"
-else
-  step 2 "Installing the FLY app"
-  warn "No release found; installing the latest development version."
+step 2 "Installing the FLY app ($ref)"
+if [ "$ref" = main ]; then
+  warn "Installing the development version (main), as FLY_VERSION asks."
   archive="$REPO/archive/refs/heads/main.tar.gz"
+else
+  archive="$REPO/archive/refs/tags/$ref.tar.gz"
 fi
 detail "fly-transcriber from $archive" \
   "as a uv tool (PyObjC menubar app; bundles ffmpeg via imageio-ffmpeg)"

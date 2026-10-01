@@ -16,6 +16,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from .config import ensure_private_dir
+
 STATE_PATH = Path("~/.config/fly-transcriber/state.json").expanduser()
 
 _lock = threading.Lock()
@@ -84,7 +86,7 @@ def _load_raw() -> dict:
 
 
 def _save_raw(data: dict) -> None:
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ensure_private_dir(STATE_PATH.parent)
     tmp = STATE_PATH.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     tmp.replace(STATE_PATH)  # atomic: never leave a half-written ledger

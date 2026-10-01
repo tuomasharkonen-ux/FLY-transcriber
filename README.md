@@ -106,7 +106,9 @@ Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
   first recording, without asking. With no terminal to ask in, it downloads
   them now.
 - `FLY_VERSION=v0.2.0` (an environment variable, set before `sh`): install that
-  release instead of the latest one.
+  release instead of the latest one. `FLY_VERSION=main` installs work in
+  progress; nothing else ever does, and if the latest release cannot be looked
+  up the installer stops rather than falling back to `main`.
 
 The installer installs the newest [release](https://github.com/tuomasharkonen-ux/FLY-transcriber/releases),
 not whatever is on `main`.

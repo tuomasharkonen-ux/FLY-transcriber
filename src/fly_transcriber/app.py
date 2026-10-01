@@ -324,9 +324,7 @@ class MeetingRecorderApp:
         project = self.settings.project(project_name)
         if project is None:
             raise ValueError(f"Unknown project {project_name!r}")
-        directory = self.settings.resolved_output_dir / name
-        if not directory.is_dir():
-            raise ValueError(f"Unknown meeting {name!r}")
+        directory = self._meeting_directory(name)
 
         title = (payload.get("title") or "").strip()
         participants = [str(p).strip() for p in payload.get("participants") or [] if str(p).strip()]

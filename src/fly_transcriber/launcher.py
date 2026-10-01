@@ -64,6 +64,20 @@ def _is_ours(bundle: Path) -> bool:
         return False
 
 
+def _tool_command(tool: Path) -> str:
+    """The tool as the stub script names it, relative to ``$HOME`` when it can be.
+
+    ``/Applications`` is shared by every account on the Mac. With the installing
+    user's home spelled out, anyone else opening FLY there would run that user's
+    copy, which that user could change; ``$HOME`` makes each person run their own.
+    """
+    try:
+        relative = tool.relative_to(Path.home())
+    except ValueError:
+        return shlex.quote(str(tool))
+    return f'"$HOME"/{shlex.quote(str(relative))}'
+
+
 def _build(directory: Path, tool: Path) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     final = directory / APP_NAME
@@ -85,7 +99,7 @@ def _build(directory: Path, tool: Path) -> Path:
         script.write_text(
             "#!/bin/sh\n"
             "# Starts FLY, or brings up the running one.\n"
-            f"nohup {shlex.quote(str(tool))} --show >/dev/null 2>&1 &\n",
+            f"nohup {_tool_command(tool)} --show >/dev/null 2>&1 &\n",
             encoding="utf-8",
         )
         script.chmod(0o755)

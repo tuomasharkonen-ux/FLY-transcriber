@@ -1,0 +1,57 @@
+# The app pins ownscribe to 0.15.x, but not what ownscribe pulls in (whisperx,
+# pyannote, torch). A new release of any of them can break a fresh install
+# while existing ones keep working, so this installs from scratch every week
+# and checks the one thing that relies on their internals: the local speaker
+# model loads by its hub name when run from the models folder (and only then).
+
+name: upstream
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-install:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Start from an empty Hugging Face cache
+        run: echo "HF_HOME=$RUNNER_TEMP/hf" >> "$GITHUB_ENV"
+      - name: Install the pinned ownscribe, as install.sh does
+        run: |
+          spec="$(sed -n 's/^OWNSCRIBE="\(.*\)"$/\1/p' install.sh)"
+          uv tool install --python 3.12 "$spec"
+          ownscribe --help >/dev/null
+      - name: Download the speaker model release and check its checksums
+        run: |
+          mkdir -p "$RUNNER_TEMP/models"
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/speaker-model-v1/speaker-diarization-community-1.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/models"
+          awk '/^MODEL_SHA256="/{f=1; sub(/^MODEL_SHA256="/, "")} f{line=$0; if (sub(/"$/, "", line)) f=0; print line}' install.sh \
+            > "$RUNNER_TEMP/sha256"
+          cd "$RUNNER_TEMP/models/pyannote/speaker-diarization-community-1"
+          shasum -a 256 -c "$RUNNER_TEMP/sha256"
+      - name: The local model loads from the models folder, with the placeholder token
+        run: |
+          cd "$RUNNER_TEMP/models"
+          "$(uv tool dir)/ownscribe/bin/python" -c "
+          from whisperx.diarize import DiarizationPipeline
+          DiarizationPipeline(token='local-model', device='cpu')"
+      - name: Elsewhere it does not (the hub refuses the placeholder)
+        run: |
+          cd "$RUNNER_TEMP"
+          if "$(uv tool dir)/ownscribe/bin/python" -c "
+          from whisperx.diarize import DiarizationPipeline
+          DiarizationPipeline(token='local-model', device='cpu')"; then
+            echo "Loaded without the local copy: the test above proves nothing." >&2
+            exit 1
+          fi
+      - name: The app installs and starts its command line
+        run: |
+          uv tool install --python 3.12 .
+          fly-transcriber --version

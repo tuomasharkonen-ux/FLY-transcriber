@@ -24,6 +24,9 @@ STATIC_DIR = Path(__file__).parent / "static"
 #: Fixed so the menubar link and any bookmark stay valid across restarts.
 DEFAULT_PORT = 8756
 
+#: Request bodies are small JSON forms; anything bigger is not from the UI.
+MAX_BODY = 1_000_000
+
 _CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -91,6 +94,11 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        # No other site may show these pages in a frame: it could lay its own
+        # content over them and trick a click on Record or Delete.
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'self'")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         try:
             self.wfile.write(body)
@@ -103,8 +111,11 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, body, "application/json; charset=utf-8")
 
     def _read_json(self) -> dict:
-        length = int(self.headers.get("Content-Length") or 0)
-        if not length:
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return {}
+        if not 0 < length <= MAX_BODY:
             return {}
         try:
             data = json.loads(self.rfile.read(length))

@@ -9,6 +9,8 @@ trust.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +34,34 @@ ATTRIBUTION_NOTE = (
     "answer) before crediting decisions, action items or opinions. Where it "
     "stays ambiguous, name both people rather than picking one."
 )
+
+
+#: Text that YAML reads back unchanged without quotes: starts with a letter and
+#: holds nothing YAML gives meaning to (": " starts a mapping, " #" a comment,
+#: "," and brackets end a list item). Anything else is quoted.
+_PLAIN_YAML_RE = re.compile(r"[^\W\d_][\w .'()&/+-]*")
+_YAML_KEYWORDS = {"true", "false", "yes", "no", "on", "off", "null", "y", "n"}
+
+
+def yaml_str(text: str) -> str:
+    """``text`` as a YAML scalar: bare when that is safe, quoted otherwise.
+
+    Titles and names are typed by people, and "Acme: kickoff" or "Sprint #3"
+    left bare would break the frontmatter (or silently lose half the title).
+    A JSON string is also a valid YAML double-quoted string.
+    """
+    text = " ".join(str(text).split())  # one line: a newline would end the field
+    if (
+        _PLAIN_YAML_RE.fullmatch(text)
+        and not text.endswith(" ")
+        and text.casefold() not in _YAML_KEYWORDS
+    ):
+        return text
+    return json.dumps(text, ensure_ascii=False)
+
+
+def _yaml_list(items) -> str:
+    return "[" + ", ".join(yaml_str(item) for item in items) + "]"
 
 
 class FilingError(RuntimeError):
@@ -122,7 +152,7 @@ def render(
     started = meeting.started or datetime.fromtimestamp(
         meeting.directory.stat().st_mtime
     )
-    heading = title or meeting.title or "Meeting"
+    heading = " ".join((title or meeting.title or "Meeting").split())
 
     lines = _frontmatter(
         meeting, project, started, heading, participants, speaker_names, speaker_merges
@@ -157,21 +187,23 @@ def _frontmatter(
     # Show the mapped names where known, anonymous labels otherwise.
     mapping = speaker_names or {}
     merged = turn_speakers(merge_speakers(meeting.turns, speaker_merges))
-    speakers = list(dict.fromkeys(mapping.get(s, s) for s in merged))
-    people = ", ".join(participants or [])
+    speakers = _yaml_list(dict.fromkeys(mapping.get(s, s) for s in merged))
+    people = _yaml_list(participants or [])
+    title = yaml_str(title)
+    source = yaml_str(str(meeting.directory))
 
     if project.frontmatter == "obsidian":
         return [
             "---",
             f"title: {title}",
             f"date: {started.strftime('%d-%m-%y')}",
-            f"tags: [{', '.join(project.tags)}]",
+            f"tags: {_yaml_list(project.tags)}",
             "type: meeting",
-            f"participants: [{people}]",
-            f"speakers: [{', '.join(speakers)}]",
+            f"participants: {people}",
+            f"speakers: {speakers}",
             f"diarized: {str(meeting.has_speakers).lower()}",
             RAW_MARKER,
-            f"source: {meeting.directory}",
+            f"source: {source}",
             "---",
         ]
     return [
@@ -180,9 +212,9 @@ def _frontmatter(
         f"date: {started.date().isoformat()}",
         f"time: {started.strftime('%H:%M')}",
         "type: meeting",
-        f"participants: [{people}]",
-        f"source: {meeting.directory}",
-        f"speakers: [{', '.join(speakers)}]",
+        f"participants: {people}",
+        f"source: {source}",
+        f"speakers: {speakers}",
         f"diarized: {str(meeting.has_speakers).lower()}",
         RAW_MARKER,
         "---",
