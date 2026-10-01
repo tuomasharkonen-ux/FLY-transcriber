@@ -316,8 +316,10 @@ architecture overview.
 
 ### Releasing
 
-`main` is where work happens; the installer only ever installs tagged releases.
-To publish one:
+The installer installs the latest release. `main` may contain unreleased work
+in progress.
+
+To publish a release:
 
 ```bash
 # 1. set `version` in pyproject.toml (e.g. 0.3.0), then refresh the lockfile
