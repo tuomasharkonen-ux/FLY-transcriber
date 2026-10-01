@@ -148,7 +148,7 @@ when a recording starts, so add them before the meeting. You can also pin the
    note and deletes the raw file.
 
 Clicking a saved recording opens its transcript in the FLY window. Right-click
-the icon for the rest: New Project, the recordings folder, advanced settings
+the icon for the rest: Add Project, the recordings folder, advanced settings
 and Quit.
 
 Processing isn't instant. It runs at about **0.8× realtime**, so a one-hour
@@ -156,31 +156,29 @@ meeting takes around 50 minutes, plus speaker detection.
 
 ### Projects
 
-A project is a folder where transcripts are saved. **New Project…** (right-click
-the menubar icon)
-creates `~/<name>/meetings/_inbox/` and writes two files at the project root:
+A project is a folder where transcripts are saved. Add one in **Settings →
+Projects → Add project**, or right when you save your first recording: with no
+projects yet, the save form asks where transcripts should go. There are two
+options:
+
+- **Create a new project** makes a new folder (named after the project, in your
+  home folder unless you choose another place).
+- **Use an existing folder**, such as an Obsidian vault or a repository you
+  already work in. Pick it with the folder picker.
+
+Either way, FLY adds `meetings/_inbox/` for the transcripts and writes two files
+at the project root:
 
 - `CLAUDE.md`: tells the agent what the inbox is and what to watch out for.
 - `.claude/skills/meeting-inbox-to-note/SKILL.md`: the step-by-step skill for
   turning a transcript into a note.
 
-To use an **existing** folder, such as an Obsidian vault you already have, add
-the agent files to it:
-
-```bash
-fly-transcriber install-agent ~/path/to/your/project
-```
-
-Then add it as a destination in `~/.config/fly-transcriber/settings.toml`:
-
-```toml
-[[projects]]
-name = "Acme"
-path = "~/acme/meetings/_inbox"
-naming = "vault"          # 28-09-26-title.md   (or "timestamp": 2026-09-28_1420_title.md)
-frontmatter = "obsidian"  # slim vault template (or "generic")
-tags = []
-```
+Before anything is created, the form lists every folder and file it will add and
+marks the ones that already exist. Under **Options** you can change the
+transcripts folder, leave out the agent files, and pick the file name and
+frontmatter style. Removing a project from FLY only takes it off the list; its
+folder and files stay. To add the agent files to a folder without making it a
+project, run `fly-transcriber install-agent ~/path/to/your/project`.
 
 Existing `CLAUDE.md` or skill files are never overwritten, so you can tailor
 them to your project. Put your note template, folder layout and task format in
@@ -295,8 +293,9 @@ on it:
   window are `WKWebView`s showing the same Preact UI the app serves on
   `127.0.0.1:8756`, so it can also be opened in a browser. The popover's page is
   transparent, so the system material (Liquid Glass on macOS 26) shows through.
-  The few remaining text prompts (New Project, the token) use `osascript`,
-  because a native alert's text field can't take focus in a menubar-only app.
+  The folder picker and the token prompt use `osascript`, because a native
+  alert's text field can't take focus in a menubar-only app (and a web page
+  can't learn a folder's path).
 
 ## Development
 

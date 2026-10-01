@@ -51,6 +51,11 @@ class Api:
         record: Callable[[], dict] | None = None,
         show: Callable[[], dict] | None = None,
         delete: Callable[[str], dict] | None = None,
+        plan_project: Callable[[dict], dict] | None = None,
+        add_project: Callable[[dict], dict] | None = None,
+        remove_project: Callable[[str], dict] | None = None,
+        reveal_project: Callable[[str], dict] | None = None,
+        choose_folder: Callable[[dict], dict] | None = None,
     ) -> None:
         self.snapshot = snapshot
         self.file_meeting = file_meeting
@@ -62,6 +67,11 @@ class Api:
         self.record = record or _unsupported
         self.show = show or _unsupported
         self.delete = delete or _unsupported
+        self.plan_project = plan_project or _unsupported
+        self.add_project = add_project or _unsupported
+        self.remove_project = remove_project or _unsupported
+        self.reveal_project = reveal_project or _unsupported
+        self.choose_folder = choose_folder or _unsupported
 
 
 def _unsupported(*_args) -> dict:
@@ -177,6 +187,16 @@ class _Handler(BaseHTTPRequestHandler):
                 result = self.api.show()
             elif path == "/api/reveal":
                 result = self.api.reveal(payload.get("meeting", ""))
+            elif path == "/api/project/plan":
+                result = self.api.plan_project(payload)
+            elif path == "/api/project/add":
+                result = self.api.add_project(payload)
+            elif path == "/api/project/remove":
+                result = self.api.remove_project(payload.get("name", ""))
+            elif path == "/api/project/reveal":
+                result = self.api.reveal_project(payload.get("name", ""))
+            elif path == "/api/choose-folder":
+                result = self.api.choose_folder(payload)
             else:
                 self._json({"error": "not found"}, 404)
                 return

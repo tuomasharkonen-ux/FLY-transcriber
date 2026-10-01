@@ -81,6 +81,8 @@ export const ICONS = {
   send: "M4 12h13M13 7l5 5-5 5",
   close: "M6 6l12 12M18 6 6 18",
   sliders: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
+  plus: "M12 5v14M5 12h14",
+  file: "M13.5 3.5h-6A1.5 1.5 0 0 0 6 5v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V8m-4.5-4.5L18 8m-4.5-4.5V8H18",
   mic: "M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3Zm-6 8a6 6 0 0 0 12 0M12 18v2",
 };
 
@@ -192,8 +194,10 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
   const [participants, setParticipants] = useState((meeting.state.participants || []).join(", "));
   const [names, setNames] = useState({ ...(meeting.state.speaker_names || {}) });
   const [merges, setMerges] = useState({ ...(meeting.state.speaker_merges || {}) });
+  // The last choice, if that project is still configured.
   const [project, setProject] = useState(
-    meeting.state.pending_project || meeting.filed[0]?.project || projects[0]?.name || "",
+    [meeting.state.pending_project, meeting.filed[0]?.project]
+      .find((name) => projects.some((p) => p.name === name)) || projects[0]?.name || "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -251,8 +255,25 @@ const setMerge = (form, label, target) => {
   form.setMerges(next);
 };
 
-export const FilingFields = ({ form, meeting, projects }) => html`
+const ADD_PROJECT = "__add_project__";
+
+/** The two ways to get a first destination: shown before anything is typed. */
+export const NoProjects = ({ onAddProject }) => html`
+  <div class="no-projects">
+    <div>
+      <div class="field-label">Where should transcripts go?</div>
+      <p class="field-hint">FLY saves each transcript into a project folder, for the AI agent
+        working there to turn into notes. You don't have a project yet.</p>
+    </div>
+    <div class="choice-row">
+      <${Button} size="sm" icon="plus" onClick=${() => onAddProject("new")}>Create a new project<//>
+      <${Button} size="sm" icon="folder" onClick=${() => onAddProject("existing")}>Use an existing folder<//>
+    </div>
+  </div>`;
+
+export const FilingFields = ({ form, meeting, projects, onAddProject }) => html`
   <div class="stack">
+    ${!projects.length && html`<${NoProjects} onAddProject=${onAddProject} />`}
     <${Field} label="Title" hint="Names the saved note.">
       <input class="input" value=${form.title} placeholder="Weekly sync"
         onInput=${(e) => form.setTitle(e.currentTarget.value)} />
@@ -288,13 +309,17 @@ export const FilingFields = ({ form, meeting, projects }) => html`
         <span class="field-hint">Names and merges apply to the saved copy only. Merge a speaker that was split in two.</span>
       </div>`}
 
-    <${Field} label="Destination">
-      <select class="input" value=${form.project} onChange=${(e) => form.setProject(e.currentTarget.value)}>
-        ${projects.map((p) => html`<option key=${p.name} value=${p.name}>${p.name}</option>`)}
-      </select>
-    <//>
+    ${projects.length > 0 && html`
+      <${Field} label="Save to">
+        <select class="input" value=${form.project}
+          onChange=${(e) => e.currentTarget.value === ADD_PROJECT
+            ? (e.currentTarget.value = form.project, onAddProject?.(null))
+            : form.setProject(e.currentTarget.value)}>
+          ${projects.map((p) => html`<option key=${p.name} value=${p.name}>${p.name}</option>`)}
+          ${onAddProject && html`<option value=${ADD_PROJECT}>Add a project…</option>`}
+        </select>
+      <//>`}
 
-    ${!projects.length && html`<div class="error-text">No projects yet. Right-click the menubar icon → New Project…</div>`}
     ${form.error && html`<div class="error-text">${form.error}</div>`}
   </div>`;
 

@@ -26,15 +26,20 @@ from fly_transcriber.diarization import (
     check_diarization,
     has_local_model,
 )
-from fly_transcriber.dialogs import ask_list, ask_text
+from fly_transcriber.dialogs import ask_list, ask_text, choose_folder
 from fly_transcriber.filing import ATTRIBUTION_NOTE, FilingError, file_meeting
 from fly_transcriber.transcript import Turn, load_turns, render
 from fly_transcriber.projects import (
     Project,
     SKILL_NAME,
     SKILL_RELPATH,
+    DEFAULT_INBOX,
+    apply_plan,
     create_project,
     install_agent_files,
+    plan_from_request,
+    plan_project,
+    plan_to_dict,
     filename_for,
     slugify,
 )
@@ -596,6 +601,96 @@ def test_create_project_is_idempotent(tmp_path):
     assert Path(project.path).is_dir()
 
 
+# -- project setup -----------------------------------------------------------
+
+
+def test_plan_new_project_lists_everything_it_creates(tmp_path):
+    plan = plan_project("Acme Corp", tmp_path, new=True)
+    root = tmp_path / "acme-corp"
+    assert plan.root == root
+    assert [(s.path, s.exists) for s in plan.steps] == [
+        (root, False),
+        (root / DEFAULT_INBOX, False),
+        (root / "CLAUDE.md", False),
+        (root / SKILL_RELPATH, False),
+    ]
+    assert plan.project.path == str(root / DEFAULT_INBOX)
+    assert not root.exists()  # planning touches nothing
+
+
+def test_apply_plan_creates_what_was_planned(tmp_path):
+    plan = plan_project("Acme", tmp_path, new=True)
+    created = apply_plan(plan)
+    assert set(created) == {s.path for s in plan.steps}
+    assert all(s.path.exists() for s in plan.steps)
+
+
+def test_plan_new_project_refuses_an_existing_folder(tmp_path):
+    (tmp_path / "acme").mkdir()
+    with pytest.raises(ValueError, match="already exists"):
+        plan_project("Acme", tmp_path, new=True)
+
+
+def test_plan_existing_folder_keeps_existing_files(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("mine", encoding="utf-8")
+    plan = plan_project("Vault", tmp_path, new=False)
+    kept = {s.path.name: s.exists for s in plan.steps}
+    assert kept == {"_inbox": False, "CLAUDE.md": True, "SKILL.md": False}
+    apply_plan(plan)
+    assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == "mine"
+    assert not plan.notes  # default inbox: the skill finds it anyway
+
+
+def test_plan_warns_when_kept_claude_md_cannot_know_custom_inbox(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("mine", encoding="utf-8")
+    plan = plan_project("Vault", tmp_path, new=False, inbox="Inbox")
+    assert "Inbox/" in plan.notes[0]
+
+
+def test_plan_existing_folder_without_inbox_or_agent_files(tmp_path):
+    plan = plan_project("Vault", tmp_path, new=False, inbox="", agent_files=False)
+    assert plan.steps == []
+    assert plan.project.path == str(tmp_path)
+
+
+@pytest.mark.parametrize("inbox", ["../elsewhere", "/abs", "~/x", "a/../../b"])
+def test_plan_keeps_inbox_inside_the_project(tmp_path, inbox):
+    with pytest.raises(ValueError):
+        plan_project("Vault", tmp_path, new=False, inbox=inbox)
+
+
+def test_plan_refuses_home_folder_and_missing_folders(tmp_path):
+    with pytest.raises(ValueError, match="home folder"):
+        plan_project("Home", Path.home(), new=False)
+    with pytest.raises(ValueError, match="not a folder"):
+        plan_project("Gone", tmp_path / "missing", new=False)
+    with pytest.raises(ValueError, match="name"):
+        plan_project("  ", tmp_path, new=True)
+
+
+def test_plan_from_request_refuses_duplicates(tmp_path):
+    existing = [Project("Acme", str(tmp_path / "vault" / DEFAULT_INBOX))]
+    (tmp_path / "vault").mkdir()
+    with pytest.raises(ValueError, match="already a project named"):
+        plan_from_request({"kind": "new", "name": "acme", "folder": str(tmp_path)}, existing)
+    with pytest.raises(ValueError, match="already saves to"):
+        plan_from_request({"kind": "existing", "name": "Other", "folder": str(tmp_path / "vault")}, existing)
+
+
+def test_plan_to_dict_abbreviates_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    data = plan_to_dict(plan_project("Acme", tmp_path, new=True))
+    assert data["root"] == "~/acme"
+    assert data["steps"][1]["path"] == f"~/acme/{DEFAULT_INBOX}"
+
+
+def test_choose_folder_returns_path_or_none(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run("/Users/me/Acme/\n"))
+    assert choose_folder("Pick") == "/Users/me/Acme"
+    monkeypatch.setattr(subprocess, "run", _fake_run("", returncode=1))
+    assert choose_folder("Pick") is None
+
+
 # -- recorder ----------------------------------------------------------------
 
 
@@ -1050,6 +1145,24 @@ def test_server_files_meeting():
         assert json.loads(urllib.request.urlopen(req).read())["path"] == "/x/a.md"
         assert calls["file"][0] == "m1"
         assert calls["file"][2]["participants"] == ["Sam"]
+    finally:
+        server.shutdown()
+
+
+def test_server_routes_project_requests():
+    api, calls = _stub_api()
+    api.plan_project = lambda payload: calls.setdefault("plan", payload) and {"steps": []}
+    api.remove_project = lambda name: calls.setdefault("remove", name) and {"ok": True}
+    base, server = _client(api)
+    try:
+        for path, body in (("/api/project/plan", {"name": "Acme"}), ("/api/project/remove", {"name": "Acme"})):
+            req = urllib.request.Request(
+                base + path, data=json.dumps(body).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req).read()
+        assert calls["plan"] == {"name": "Acme"}
+        assert calls["remove"] == "Acme"
     finally:
         server.shutdown()
 

@@ -14,14 +14,14 @@ from pathlib import Path
 from . import config as appconfig
 from .config import Settings, apply_ownscribe_config, load_settings, save_settings
 from .diarization import check_diarization
-from .dialogs import ask_text
+from .dialogs import ask_text, choose_folder
 from .filing import file_meeting
 from .launcher import install_launcher, remove_launcher
 from .meetings import list_meetings, move_to_trash, parse_meeting_dir
-from .projects import DEFAULT_INBOX, create_project, install_agent_files, slugify
+from .projects import apply_plan, display_path, install_agent_files, plan_from_request, plan_to_dict
 from .recorder import Phase, RunState, Recorder, resolve_ownscribe
 from .server import APP_ID, Api, serve_in_background, show_running_instance
-from .shell import Shell, alert, call_on_main
+from .shell import Shell, activate, alert, call_on_main
 from .transcript import merge_speakers, resolve_merges, speakers
 from .transcript import samples as transcript_samples
 from .transcript import render as render_turns
@@ -94,7 +94,7 @@ class MeetingRecorderApp:
             None,
             ("Open FLY", lambda _: self.shell.open_window("#/")),
             ("Settings…", lambda _: self.shell.open_window("#/settings")),
-            ("New Project…", self.new_project),
+            ("Add Project…", lambda _: self.shell.open_window("#/settings/add-project")),
             ("Open Recordings Folder", self.open_recordings),
             None,
             ("Advanced", [
@@ -224,6 +224,11 @@ class MeetingRecorderApp:
             record=self._api_record,
             show=self._api_show,
             delete=self._api_delete,
+            plan_project=self._api_plan_project,
+            add_project=self._api_add_project,
+            remove_project=self._api_remove_project,
+            reveal_project=self._api_reveal_project,
+            choose_folder=self._api_choose_folder,
         )
         try:
             return serve_in_background(api)
@@ -279,6 +284,7 @@ class MeetingRecorderApp:
                 {
                     "name": p.name,
                     "path": str(p.resolved_path),
+                    "display": display_path(p.resolved_path),
                     "naming": p.naming,
                     "frontmatter": p.frontmatter,
                 }
@@ -431,6 +437,45 @@ class MeetingRecorderApp:
         self._needs_refresh = True
         return {"ok": True}
 
+    # -- projects ------------------------------------------------------------
+
+    def _api_plan_project(self, payload: dict) -> dict:
+        """What adding this project would create, for the setup form to show."""
+        return plan_to_dict(plan_from_request(payload, self.settings.projects))
+
+    def _api_add_project(self, payload: dict) -> dict:
+        plan = plan_from_request(payload, self.settings.projects)
+        created = apply_plan(plan)
+        self.settings.projects.append(plan.project)
+        save_settings(self.settings)
+        return {"name": plan.project.name, "created": [display_path(p) for p in created]}
+
+    def _api_remove_project(self, name: str) -> dict:
+        """Forget a destination. Its folder and everything saved there stay."""
+        project = self.settings.project(name)
+        if project is None:
+            raise ValueError(f"Unknown project {name!r}")
+        self.settings.projects.remove(project)
+        save_settings(self.settings)
+        return {"ok": True}
+
+    def _api_reveal_project(self, name: str) -> dict:
+        project = self.settings.project(name)
+        if project is None:
+            raise ValueError(f"Unknown project {name!r}")
+        folder = project.resolved_path
+        subprocess.run(["open", str(folder if folder.is_dir() else folder.parent)], check=False)
+        return {"ok": True}
+
+    def _api_choose_folder(self, payload: dict) -> dict:
+        """The native folder picker. Blocks this server thread, not the UI."""
+        path = choose_folder(
+            str(payload.get("prompt") or "Choose a folder"), str(payload.get("default") or "")
+        )
+        # The picker belongs to osascript; bring the FLY window back in front.
+        call_on_main(activate)
+        return {"path": path and display_path(Path(path))}
+
     def _api_record(self) -> dict:
         """Start or stop from the popover. Starting may show alerts, so it runs
         on the main thread rather than this server thread."""
@@ -462,44 +507,6 @@ class MeetingRecorderApp:
         alert("No speaker labels in transcript", detail)
 
     # -- menu actions --------------------------------------------------------
-
-    def new_project(self, _sender) -> None:
-        """Create a project folder in the home root and register it."""
-        name = ask_text(
-            "New Project",
-            "Project name. Creates ~/<name>/meetings/_inbox/ plus a CLAUDE.md "
-            "and an agent skill telling that project's agent what to do with "
-            "what lands there.",
-        )
-        if not name:
-            return
-        if self.settings.project(name):
-            alert("Already exists", f"A project named {name} is configured.")
-            return
-
-        preview_path = Path.home() / slugify(name) / DEFAULT_INBOX
-        if not alert(
-            "Create project?",
-            f"Name: {name}\nMeetings land in: {preview_path}\n\n"
-            "A CLAUDE.md and the meeting-inbox-to-note skill will be written "
-            "unless they already exist.",
-            ok="Create",
-            cancel="Cancel",
-        ):
-            return
-
-        try:
-            project, written = create_project(name)
-        except (OSError, ValueError) as exc:
-            alert("Could not create project", str(exc))
-            return
-
-        self.settings.projects.append(project)
-        save_settings(self.settings)
-
-        wrote = "".join(f"\nWrote {path}" for path in written)
-        alert("Project created", f"{project.name}\n{project.resolved_path}{wrote}")
-        subprocess.run(["open", str(project.resolved_path.parent.parent)], check=False)
 
     def reload_settings(self, _sender) -> None:
         """Re-read settings.toml so project edits apply without a restart."""

@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import time
 
+from fly_transcriber.projects import Project, display_path, plan_from_request, plan_to_dict
 from fly_transcriber.server import Api, make_server
 
 PORT = int(os.environ.get("PORT", 8757))
@@ -45,6 +46,30 @@ def meeting(name, title, when, duration, speakers, filed=(), processing=False, t
     }
 
 
+#: Remove both from the Settings page to see the no-projects flow.
+PROJECTS = [
+    Project("Acme", "/Users/me/acme/notes/meetings/_inbox", "vault", "obsidian"),
+    Project("Globex", "/Users/me/globex/meetings/_inbox", "timestamp", "generic"),
+]
+
+
+def project_dict(p):
+    return {"name": p.name, "path": p.path, "display": display_path(p.resolved_path),
+            "naming": p.naming, "frontmatter": p.frontmatter}
+
+
+def add_project(payload):
+    # Plans against the real disk (read-only) but creates nothing.
+    plan = plan_from_request(payload, PROJECTS)
+    PROJECTS.append(plan.project)
+    return {"name": plan.project.name, "created": []}
+
+
+def remove_project(name):
+    PROJECTS[:] = [p for p in PROJECTS if p.name != name]
+    return {"ok": True}
+
+
 def run_summary():
     if RUN["started"] is None:
         return {"css": "busy", "label": "Diarizing", "detail": "42:10 captured", "elapsed": "42:10", "progress": 0.6}
@@ -68,10 +93,7 @@ def snapshot():
             meeting("design-review", "Design review", "27.09. 09:30", 1800, three[:2], filed=["Globex"]),
             meeting("one-on-one", "", "26.09. 13:00", 1500, three[:2], filed=["Acme", "Globex"]),
         ],
-        "projects": [
-            {"name": "Acme", "path": "/Users/me/acme/notes/meetings/_inbox", "naming": "vault", "frontmatter": "obsidian"},
-            {"name": "Globex", "path": "/Users/me/globex/meetings/_inbox", "naming": "timestamp", "frontmatter": "generic"},
-        ],
+        "projects": [project_dict(p) for p in PROJECTS],
         "settings": {"model": "large-v3", "language": "fi", "silence_timeout": 300, "speaker_count": 0,
                      "hotwords": "Acme, Globex, Kubernetes", "mic": True, "diarize": True, "keep_recording": True},
     }
@@ -98,6 +120,11 @@ def dismiss(name):
 if __name__ == "__main__":
     api = Api(snapshot=snapshot, file_meeting=file_meeting, save_settings=lambda p: {"ok": True},
               forget=lambda n: {"ok": True}, meeting_detail=detail, reveal=lambda n: {"ok": True},
-              dismiss=dismiss, record=record, delete=lambda n: {"ok": True})
+              dismiss=dismiss, record=record, delete=lambda n: {"ok": True},
+              plan_project=lambda p: plan_to_dict(plan_from_request(p, PROJECTS)),
+              add_project=add_project, remove_project=remove_project,
+              reveal_project=lambda n: {"ok": True},
+              # No native picker here: pretend the user chose ~/Documents.
+              choose_folder=lambda p: {"path": "~/Documents"})
     print(f"http://127.0.0.1:{PORT}/")
     make_server(api, PORT).serve_forever()

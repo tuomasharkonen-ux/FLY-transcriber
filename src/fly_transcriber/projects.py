@@ -210,6 +210,167 @@ def create_project(
     return project, written
 
 
+@dataclass
+class PlanStep:
+    """One folder or file that adding a project touches."""
+
+    path: Path
+    kind: str  # "folder" | "file"
+    exists: bool
+    purpose: str
+
+
+@dataclass
+class ProjectPlan:
+    """What adding a project will do, shown to the user before it is done."""
+
+    project: Project
+    root: Path
+    steps: list[PlanStep]
+    #: Things worth knowing that are not files, e.g. an existing CLAUDE.md
+    #: that will not mention a custom inbox.
+    notes: list[str] = field(default_factory=list)
+    agent_files: bool = True
+    inbox: str = DEFAULT_INBOX
+
+
+def _clean_inbox(inbox: str) -> str:
+    """A relative subfolder of the project root; "" means the root itself."""
+    parts = [p for p in inbox.strip().replace("\\", "/").split("/") if p not in ("", ".")]
+    if inbox.strip().startswith(("/", "~")) or ".." in parts:
+        raise ValueError("The transcripts folder must be inside the project folder")
+    return "/".join(parts)
+
+
+def plan_project(
+    name: str,
+    folder: str | Path,
+    *,
+    new: bool,
+    inbox: str = DEFAULT_INBOX,
+    agent_files: bool = True,
+    naming: str = "vault",
+    frontmatter: str = "generic",
+) -> ProjectPlan:
+    """Work out what adding a project would create, without touching disk.
+
+    ``new`` creates a folder named after the project inside ``folder``;
+    otherwise ``folder`` is an existing project root (a vault, a repository).
+    Raises ``ValueError`` with a message meant for the user.
+    """
+    name = name.strip()
+    if not name:
+        raise ValueError("Give the project a name")
+    if not str(folder).strip():
+        raise ValueError("Choose a folder")
+    location = Path(str(folder).strip()).expanduser()
+    if not location.is_absolute():
+        raise ValueError("Use a full path, like ~/Documents")
+    inbox = _clean_inbox(inbox)
+    if naming not in NAMING_STYLES:
+        raise ValueError(f"Unknown filename style {naming!r}")
+    if frontmatter not in FRONTMATTER_STYLES:
+        raise ValueError(f"Unknown frontmatter style {frontmatter!r}")
+
+    if new:
+        if not location.is_dir():
+            raise ValueError(f"{location} is not a folder")
+        root = location / slugify(name)
+        if root.exists():
+            raise ValueError(
+                f"{root} already exists. Pick another name or location, "
+                "or add it as an existing folder."
+            )
+    else:
+        root = location
+        if not root.is_dir():
+            raise ValueError(f"{root} is not a folder")
+        if root in (Path.home(), Path("/")):
+            # CLAUDE.md in the home folder would apply to every project under it.
+            raise ValueError("Choose a project folder, not your whole home folder")
+
+    target = root / inbox if inbox else root
+    steps: list[PlanStep] = []
+    if new:
+        steps.append(PlanStep(root, "folder", False, "The project folder"))
+    if inbox:
+        steps.append(PlanStep(
+            target, "folder", target.is_dir(),
+            "Saved transcripts land here, one markdown file per meeting",
+        ))
+
+    notes: list[str] = []
+    if agent_files:
+        instructions, skill = root / "CLAUDE.md", root / SKILL_RELPATH
+        steps.append(PlanStep(
+            instructions, "file", instructions.exists(),
+            "Tells an AI agent working in this folder where transcripts land "
+            "and how to turn them into notes",
+        ))
+        steps.append(PlanStep(
+            skill, "file", skill.exists(),
+            "The step-by-step skill the agent follows to process a transcript",
+        ))
+        if instructions.exists() and inbox != DEFAULT_INBOX:
+            notes.append(
+                f"Your CLAUDE.md is kept as it is. Add a line telling the agent "
+                f"that transcripts land in {inbox or 'the project root'}/, since "
+                f"the skill otherwise looks in {DEFAULT_INBOX}/."
+            )
+
+    project = Project(name=name, path=str(target), naming=naming, frontmatter=frontmatter)
+    return ProjectPlan(project, root, steps, notes, agent_files, inbox)
+
+
+def plan_from_request(payload: dict, existing: list[Project]) -> ProjectPlan:
+    """``plan_project`` for a dashboard request, refusing duplicates of ``existing``."""
+    plan = plan_project(
+        str(payload.get("name") or ""),
+        str(payload.get("folder") or ""),
+        new=payload.get("kind") == "new",
+        inbox=str(payload.get("inbox", DEFAULT_INBOX) or ""),
+        agent_files=bool(payload.get("agent_files", True)),
+        naming=str(payload.get("naming") or "vault"),
+        frontmatter=str(payload.get("frontmatter") or "generic"),
+    )
+    for other in existing:
+        if other.name.casefold() == plan.project.name.casefold():
+            raise ValueError(f"There is already a project named {other.name}")
+        if other.resolved_path == plan.project.resolved_path:
+            raise ValueError(f"{other.name} already saves to that folder")
+    return plan
+
+
+def display_path(path: Path) -> str:
+    """``~/acme`` rather than ``/Users/me/acme``: shorter, and what people type."""
+    try:
+        return "~/" + str(path.relative_to(Path.home()))
+    except ValueError:
+        return str(path)
+
+
+def plan_to_dict(plan: ProjectPlan) -> dict:
+    return {
+        "name": plan.project.name,
+        "root": display_path(plan.root),
+        "inbox": display_path(plan.project.resolved_path),
+        "steps": [
+            {"path": display_path(s.path), "kind": s.kind, "exists": s.exists, "purpose": s.purpose}
+            for s in plan.steps
+        ],
+        "notes": plan.notes,
+    }
+
+
+def apply_plan(plan: ProjectPlan) -> list[Path]:
+    """Create what ``plan`` describes. Returns the files and folders created."""
+    created = [s.path for s in plan.steps if not s.exists and s.kind == "folder"]
+    plan.project.resolved_path.mkdir(parents=True, exist_ok=True)
+    if plan.agent_files:
+        created += install_agent_files(plan.root, plan.project.name, plan.inbox or ".")
+    return created
+
+
 def filename_for(meeting, project: Project, title: str | None = None) -> str:
     """Build the destination filename for ``meeting`` under ``project``.
 

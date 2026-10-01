@@ -11,7 +11,11 @@ const POLL_MS = 1000;
 function useHashRoute() {
   const read = () => {
     const parts = location.hash.replace(/^#\/?/, "").split("/");
-    if (parts[0] === "settings") return { view: "settings" };
+    if (parts[0] === "settings") return { view: "settings", adding: parts[1] === "add-project" };
+    // From the popover: save a recording, optionally starting with project setup.
+    if (parts[0] === "save" && parts[1]) {
+      return { view: "save", name: decodeURIComponent(parts[1]), setup: parts[2] || null };
+    }
     if (parts[0] === "r" && parts[1]) return { view: "recording", name: decodeURIComponent(parts[1]) };
     return { view: "recordings" };
   };
@@ -311,12 +315,267 @@ const RecordingView = ({ meeting, onFile, toast }) => {
     </section>`;
 };
 
+// -- project setup --------------------------------------------------------
+
+const basename = (path) => path.replace(/\/+$/, "").split("/").pop() || "";
+
+const NAMING = [
+  ["vault", "28-09-26-title.md"],
+  ["timestamp", "2026-09-28_1420_title.md"],
+];
+const FRONTMATTER = [
+  ["generic", "Generic"],
+  ["obsidian", "Obsidian"],
+];
+const FRONTMATTER_HINTS = {
+  generic: "ISO date, time, participants and speakers.",
+  obsidian: "dd-mm-yy date, tags and a note for the agent.",
+};
+
+/** "Create a new project" or "Use an existing folder": the first question. */
+const ProjectChoice = ({ onPick }) => html`
+  <div class="stack">
+    <p class="subtle">
+      A project is a folder where FLY saves transcripts, for the AI agent working
+      in that folder to turn into notes.
+    </p>
+    <div class="choices">
+      <button type="button" class="choice" onClick=${() => onPick("new")}>
+        <span class="choice-icon"><${Icon} name="plus" /></span>
+        <span class="choice-title">Create a new project</span>
+        <span class="choice-body">FLY makes a new folder for it, set up for an agent.</span>
+      </button>
+      <button type="button" class="choice" onClick=${() => onPick("existing")}>
+        <span class="choice-icon"><${Icon} name="folder" /></span>
+        <span class="choice-title">Use an existing folder</span>
+        <span class="choice-body">An Obsidian vault, a repository, any folder you already work in.</span>
+      </button>
+    </div>
+  </div>`;
+
+/** The folder and its contents as they will be after adding, marked new or kept. */
+const PlanPreview = ({ plan, kind }) => {
+  const rel = (path) => path.startsWith(plan.root + "/") ? path.slice(plan.root.length + 1) : path;
+  const inside = plan.steps.filter((s) => s.path !== plan.root);
+  return html`
+    <div class="plan">
+      <div class="plan-title">What FLY will do</div>
+      <ul class="plan-tree">
+        <li class="plan-root">
+          <${Icon} name="folder" />
+          <code>${plan.root}</code>
+          <span class=${`plan-tag ${kind === "new" ? "plan-new" : ""}`}>${kind === "new" ? "New folder" : "Your folder"}</span>
+        </li>
+        ${inside.map((step) => html`
+          <li key=${step.path}>
+            <${Icon} name=${step.kind} />
+            <div>
+              <code>${rel(step.path)}${step.kind === "folder" ? "/" : ""}</code>
+              <div class="plan-purpose">${step.purpose}</div>
+            </div>
+            <span class=${`plan-tag ${step.exists ? "" : "plan-new"}`}>
+              ${step.exists ? (step.kind === "file" ? "Exists, kept as is" : "Exists") : "New"}
+            </span>
+          </li>`)}
+      </ul>
+      ${plan.notes.map((n) => html`<p class="plan-note" key=${n}>${n}</p>`)}
+      <p class="field-hint">
+        FLY lists <strong>${plan.name}</strong> as a place to save to. Nothing else in the
+        folder is read or changed, and removing the project from FLY later leaves every file in place.
+      </p>
+    </div>`;
+};
+
+const FolderField = ({ label, hint, value, onChange, prompt }) => {
+  const [busy, setBusy] = useState(false);
+  const choose = async () => {
+    setBusy(true);
+    try {
+      const { path } = await api("/api/choose-folder", { prompt, default: value });
+      if (path) onChange(path);
+    } catch { /* cancelled, or no picker: the path can still be typed */ }
+    setBusy(false);
+  };
+  return html`
+    <${Field} label=${label} hint=${hint}>
+      <div class="folder-input">
+        <input class="input" value=${value} placeholder="~/Documents/Acme" spellcheck="false"
+          onInput=${(e) => onChange(e.currentTarget.value)} />
+        <${Button} onClick=${choose} disabled=${busy}>${busy ? "Choosing…" : "Choose…"}<//>
+      </div>
+    <//>`;
+};
+
+/**
+ * Setting up a destination. Every change asks the server for the plan, so what
+ * the form says will happen is exactly what adding does.
+ */
+const ProjectSetup = ({ kind, onBack, onDone, toast }) => {
+  const isNew = kind === "new";
+  const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
+  const [folder, setFolder] = useState(isNew ? "~" : "");
+  const [inbox, setInbox] = useState("meetings/_inbox");
+  const [agentFiles, setAgentFiles] = useState(true);
+  const [naming, setNaming] = useState("vault");
+  const [frontmatter, setFrontmatter] = useState("generic");
+  const [plan, setPlan] = useState(null);
+  const [problem, setProblem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ref = useRef();
+
+  // An existing folder names the project until the user names it themselves.
+  const effectiveName = nameTouched || isNew ? name : basename(folder);
+  const request = {
+    kind, name: effectiveName, folder, inbox, agent_files: agentFiles, naming, frontmatter,
+  };
+  const key = JSON.stringify(request);
+
+  useEffect(() => { ref.current?.querySelector("input")?.focus(); }, []);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      api("/api/project/plan", request)
+        .then((p) => live && (setPlan(p), setProblem("")))
+        .catch((e) => live && (setPlan(null), setProblem(e.message)));
+    }, 200);
+    return () => { live = false; clearTimeout(timer); };
+  }, [key]);
+
+  const add = async () => {
+    setBusy(true);
+    try {
+      const result = await api("/api/project/add", request);
+      toast(`${result.name} added`);
+      onDone(result.name);
+    } catch (err) {
+      setProblem(err.message);
+      setBusy(false);
+    }
+  };
+
+  const nameField = html`
+    <${Field} label="Project name" hint=${isNew ? "Also names the folder." : "Shown when saving. Defaults to the folder's name."}>
+      <input class="input" value=${effectiveName} placeholder="Acme"
+        onInput=${(e) => { setName(e.currentTarget.value); setNameTouched(true); }} />
+    <//>`;
+  const folderField = html`
+    <${FolderField} value=${folder} onChange=${setFolder}
+      label=${isNew ? "Create it in" : "Folder"}
+      hint=${isNew ? "The project folder is made inside this one." : "The project's top folder, where its agent works."}
+      prompt=${isNew ? "Where should the new project folder go?" : "Choose the project folder"} />`;
+
+  return html`
+    <div class="stack" ref=${ref}>
+      ${isNew ? [nameField, folderField] : [folderField, nameField]}
+
+      <details class="options">
+        <summary>Options</summary>
+        <div class="stack">
+          <${Field} label="Transcripts folder" hint="Inside the project. Leave empty to save into the project folder itself.">
+            <input class="input" value=${inbox} placeholder="meetings/_inbox" spellcheck="false"
+              onInput=${(e) => setInbox(e.currentTarget.value)} />
+          <//>
+          <${Switch} label="Add agent instructions"
+            hint="CLAUDE.md and the meeting skill, so an agent knows what to do with the transcripts. Existing files are never overwritten."
+            checked=${agentFiles} onChange=${setAgentFiles} />
+          <div class="grid-2">
+            <${Field} label="File names" hint=${naming === "vault" ? "Day first, like a vault note." : "Sorts by recording time."}>
+              <select class="input" value=${naming} onChange=${(e) => setNaming(e.currentTarget.value)}>
+                ${NAMING.map(([v, l]) => html`<option key=${v} value=${v}>${l}</option>`)}
+              </select>
+            <//>
+            <${Field} label="Frontmatter" hint=${FRONTMATTER_HINTS[frontmatter]}>
+              <select class="input" value=${frontmatter} onChange=${(e) => setFrontmatter(e.currentTarget.value)}>
+                ${FRONTMATTER.map(([v, l]) => html`<option key=${v} value=${v}>${l}</option>`)}
+              </select>
+            <//>
+          </div>
+        </div>
+      </details>
+
+      ${plan
+        ? html`<${PlanPreview} plan=${plan} kind=${kind} />`
+        : problem && html`<div class="plan plan-problem">${problem}</div>`}
+
+      <div class="dialog-foot">
+        <${Button} variant="ghost" class="foot-start" icon="back" onClick=${onBack}>Back<//>
+        <${Button} variant="primary" disabled=${!plan || busy} onClick=${add}>
+          ${busy ? "Adding…" : isNew ? "Create project" : "Add project"}
+        <//>
+      </div>
+    </div>`;
+};
+
+const SETUP_TITLES = { choose: "Add a project", new: "Create a new project", existing: "Use an existing folder" };
+
+/** The choice, then the form for it. ``step`` is "choose", "new" or "existing". */
+const ProjectSteps = ({ step, setStep, onBack, onDone, toast }) =>
+  step === "choose"
+    ? html`
+        <${ProjectChoice} onPick=${setStep} />
+        ${onBack && html`<div class="dialog-foot">
+          <${Button} variant="ghost" class="foot-start" icon="back" onClick=${onBack}>Back<//>
+        </div>`}`
+    : html`<${ProjectSetup} key=${step} kind=${step} toast=${toast} onDone=${onDone}
+        onBack=${() => setStep("choose")} />`;
+
+const AddProjectDialog = ({ onClose, onAdded, toast }) => {
+  const ref = useRef();
+  const [step, setStep] = useState("choose");
+  useEffect(() => { ref.current.showModal(); }, []);
+  return html`
+    <dialog class="dialog" ref=${ref} onClose=${onClose}
+      onClick=${(e) => e.target === ref.current && ref.current.close()}>
+      <div class="dialog-body">
+        <div class="dialog-head">
+          <h2>${SETUP_TITLES[step]}</h2>
+          <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
+        </div>
+        <${ProjectSteps} step=${step} setStep=${setStep} toast=${toast}
+          onDone=${() => { onAdded(); ref.current.close(); }} />
+      </div>
+    </dialog>`;
+};
+
+const RemoveProjectDialog = ({ project, onClose, onRemoved, toast }) => {
+  const ref = useRef();
+  const [error, setError] = useState("");
+  useEffect(() => { ref.current.showModal(); }, []);
+  const remove = async () => {
+    try {
+      await api("/api/project/remove", { name: project.name });
+      toast(`${project.name} removed from FLY`);
+      onRemoved();
+      ref.current.close();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  return html`
+    <dialog class="dialog dialog-narrow" ref=${ref} onClose=${onClose}
+      onClick=${(e) => e.target === ref.current && ref.current.close()}>
+      <div class="dialog-body">
+        <div class="dialog-head"><h2>Remove ${project.name} from FLY?</h2></div>
+        <p>FLY stops offering it when saving. Nothing is deleted: <code>${project.display}</code>${" "}
+          and everything in it, including transcripts already saved there, stay where they are.</p>
+        ${error && html`<div class="error-text">${error}</div>`}
+        <div class="dialog-foot">
+          <${Button} onClick=${() => ref.current.close()}>Cancel<//>
+          <${Button} variant="danger" onClick=${remove}>Remove<//>
+        </div>
+      </div>
+    </dialog>`;
+};
+
 // -- filing dialog ----------------------------------------------------------
 
-const FileDialog = ({ meeting, projects, onClose, toast }) => {
+const FileDialog = ({ meeting, projects, setup: initialSetup, onClose, refresh, toast }) => {
   const ref = useRef();
+  // null = the save form; otherwise a project setup step shown in its place.
+  const [setup, setSetup] = useState(initialSetup);
   const form = useFilingForm(meeting, projects, {
-    onFiled: (project) => { toast(`Saved to ${project}`); onClose(); },
+    onFiled: (project) => { toast(`Saved to ${project}`); ref.current.close(); },
     onSkipped: () => { toast("Skipped — it won't count as waiting"); ref.current.close(); },
   });
 
@@ -325,10 +584,28 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
     ref.current.querySelector("input")?.focus();
   }, []);
 
+  const added = async (name) => {
+    await refresh();
+    form.setProject(name);
+    setSetup(null);
+  };
+
   return html`
     <dialog class="dialog" ref=${ref} onClose=${onClose}
       onClick=${(e) => e.target === ref.current && ref.current.close()}>
-      <form method="dialog" class="dialog-body" onSubmit=${form.submit}>
+      ${setup
+        ? html`<div class="dialog-body">
+            <div class="dialog-head">
+              <div>
+                <h2>${SETUP_TITLES[setup]}</h2>
+                <p class="subtle">Then save ${meeting.title ? `“${meeting.title}”` : "the recording"} into it.</p>
+              </div>
+              <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
+            </div>
+            <${ProjectSteps} step=${setup} setStep=${setSetup} toast=${toast} onDone=${added}
+              onBack=${() => setSetup(null)} />
+          </div>`
+        : html`<form method="dialog" class="dialog-body" onSubmit=${form.submit}>
         <div class="dialog-head">
           <div>
             <h2>${meeting.filed.length ? "Edit saved note" : "Save recording"}</h2>
@@ -337,7 +614,8 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
           <${IconButton} icon="close" label="Close" onClick=${() => ref.current.close()} />
         </div>
 
-        <${FilingFields} form=${form} meeting=${meeting} projects=${projects} />
+        <${FilingFields} form=${form} meeting=${meeting} projects=${projects}
+          onAddProject=${(kind) => setSetup(kind || "choose")} />
 
         <div class="dialog-foot">
           ${awaitsFiling(meeting) && html`
@@ -348,7 +626,7 @@ const FileDialog = ({ meeting, projects, onClose, toast }) => {
             ${form.busy ? "Saving…" : `${meeting.filed.length ? "Save changes to" : "Save to"} ${form.project || "…"}`}
           </button>
         </div>
-      </form>
+      </form>`}
     </dialog>`;
 };
 
@@ -362,7 +640,42 @@ const MODELS = [
   ["tiny", "tiny — fastest, unusable for Finnish"],
 ];
 
-const SettingsView = ({ settings, projects, toast }) => {
+const ProjectsCard = ({ projects, adding, refresh, toast }) => {
+  const [removing, setRemoving] = useState(null);
+  const reveal = (p) => api("/api/project/reveal", { name: p.name }).catch((e) => toast(e.message, "error"));
+  return html`
+    <div class="card section">
+      <div class="section-head">
+        <div>
+          <h2>Projects</h2>
+          <p class="subtle">Folders FLY can save transcripts into.</p>
+        </div>
+        <${Button} icon="plus" onClick=${() => go("#/settings/add-project")}>Add project<//>
+      </div>
+      ${projects.length
+        ? html`<ul class="project-list">
+            ${projects.map((p) => html`
+              <li key=${p.name}>
+                <div class="project-main">
+                  <div class="row-title">${p.name}</div>
+                  <div class="row-meta"><code title=${p.path}>${p.display || p.path}</code></div>
+                  <div class="row-meta">${p.naming} file names · ${p.frontmatter} frontmatter</div>
+                </div>
+                <div class="row-actions">
+                  <${IconButton} icon="folder" label="Show in Finder" onClick=${() => reveal(p)} />
+                  <${IconButton} icon="trash" label=${`Remove ${p.name} from FLY`} onClick=${() => setRemoving(p)} />
+                </div>
+              </li>`)}
+          </ul>`
+        : html`<p class="subtle">No projects yet. Add one to start saving transcripts.</p>`}
+      ${adding && html`<${AddProjectDialog} toast=${toast} onAdded=${refresh}
+        onClose=${() => go("#/settings")} />`}
+      ${removing && html`<${RemoveProjectDialog} project=${removing} toast=${toast}
+        onRemoved=${refresh} onClose=${() => setRemoving(null)} />`}
+    </div>`;
+};
+
+const SettingsView = ({ settings, projects, adding, refresh, toast }) => {
   const [draft, setDraft] = useState(settings);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -442,21 +755,7 @@ const SettingsView = ({ settings, projects, toast }) => {
         </div>
       </div>
 
-      <div class="card section">
-        <h2>Projects</h2>
-        <p class="subtle">Destinations offered when saving. Edit them in${" "}
-          <code>~/.config/fly-transcriber/settings.toml</code>.</p>
-        ${projects.length
-          ? html`<ul class="project-list">
-              ${projects.map((p) => html`
-                <li key=${p.name}>
-                  <div class="row-title">${p.name}</div>
-                  <div class="row-meta"><code>${p.path}</code></div>
-                  <div class="row-meta">${p.naming} filenames · ${p.frontmatter} frontmatter</div>
-                </li>`)}
-            </ul>`
-          : html`<p class="subtle">No projects configured.</p>`}
-      </div>
+      <${ProjectsCard} projects=${projects} adding=${adding} refresh=${refresh} toast=${toast} />
 
       <div class=${`savebar ${dirty ? "visible" : ""}`}>
         <span>Unsaved changes</span>
@@ -477,21 +776,35 @@ function App() {
   const [filing, setFiling] = useState(null);
   const [toasts, toast] = useToasts();
 
+  const refresh = async () => {
+    try {
+      const next = await api("/api/state");
+      setState(next);
+      setRun(next.run);
+    } catch {
+      setRun(DISCONNECTED);
+    }
+  };
+
   useEffect(() => {
     let timer;
-    const poll = async () => {
-      try {
-        const next = await api("/api/state");
-        setState(next);
-        setRun(next.run);
-      } catch {
-        setRun(DISCONNECTED);
-      }
-      timer = setTimeout(poll, POLL_MS);
-    };
+    const poll = async () => { await refresh(); timer = setTimeout(poll, POLL_MS); };
     poll();
     return () => clearTimeout(timer);
   }, []);
+
+  // The popover hands saving over here when a project has to be set up first.
+  const [setup, setSetup] = useState(null);
+  useEffect(() => {
+    if (route.view !== "save") return;
+    setFiling(route.name);
+    setSetup(route.setup === "add" ? "choose" : route.setup);
+  }, [route.view, route.name, route.setup]);
+  const closeFiling = () => {
+    setFiling(null);
+    setSetup(null);
+    if (route.view === "save") go("#/");
+  };
 
   const meetings = state?.meetings || [];
   const projects = state?.projects || [];
@@ -511,7 +824,10 @@ function App() {
 
   let page;
   if (!state) page = html`<div class="loading page">Loading…</div>`;
-  else if (route.view === "settings") page = html`<${SettingsView} settings=${state.settings} projects=${projects} toast=${toast} />`;
+  else if (route.view === "settings") {
+    page = html`<${SettingsView} settings=${state.settings} projects=${projects}
+      adding=${route.adding} refresh=${refresh} toast=${toast} />`;
+  }
   else if (route.view === "recording") page = html`<${RecordingView} meeting=${byName[route.name]} onFile=${(m) => setFiling(m.name)} toast=${toast} />`;
   else page = html`<${RecordingsView} meetings=${meetings} onFile=${(m) => setFiling(m.name)} toast=${toast} />`;
 
@@ -519,8 +835,8 @@ function App() {
     <${TopBar} route=${route} run=${run} />
     <main>${page}</main>
     <${Footer} version=${state?.version} />
-    ${filingMeeting && html`<${FileDialog} key=${filing} meeting=${filingMeeting} projects=${projects}
-      toast=${toast} onClose=${() => setFiling(null)} />`}
+    ${filingMeeting && html`<${FileDialog} key=${`${filing}/${setup}`} meeting=${filingMeeting}
+      projects=${projects} setup=${setup} refresh=${refresh} toast=${toast} onClose=${closeFiling} />`}
     <${Toasts} toasts=${toasts} />`;
 }
 

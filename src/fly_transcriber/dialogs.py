@@ -14,6 +14,7 @@ activate and take focus on its own.
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 #: Long enough for any real answer, short enough that a forgotten dialog does
 #: not block filing forever.
@@ -87,3 +88,32 @@ def ask_list(
     if not text:
         return []
     return [item.strip() for item in text.split(",") if item.strip()]
+
+
+def choose_folder(
+    prompt: str, default: str = "", timeout: int = TIMEOUT_SECONDS
+) -> str | None:
+    """The standard macOS folder picker. Returns a POSIX path, or None if cancelled.
+
+    A web page can only hand over a folder's *contents*, never its path, so the
+    dashboard asks for the picker through the app.
+    """
+    lines = ["tell me to activate"]
+    location = ""
+    if default and Path(default).expanduser().is_dir():
+        location = f" default location (POSIX file {_literal(str(Path(default).expanduser()))})"
+    lines.append(f"set picked to choose folder with prompt {_literal(prompt)}{location}")
+    lines.append("return POSIX path of picked")
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", "\n".join(lines)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if result.returncode != 0:  # -128: cancelled
+        return None
+    path = result.stdout.strip()
+    return path.rstrip("/") or path or None

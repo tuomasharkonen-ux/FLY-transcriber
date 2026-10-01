@@ -104,6 +104,9 @@ const FilingView = ({ meeting, projects, onDone, toast }) => {
   });
   const ref = useRef();
   useEffect(() => { ref.current.querySelector("input")?.focus(); }, []);
+  // Setting up a project needs the folder picker, which would close this
+  // (transient) popover, so it continues in the FLY window.
+  const addProject = (kind) => open(`#/save/${encodeURIComponent(meeting.name)}/${kind || "add"}`);
 
   return html`
     <form ref=${ref} class="pfile" onSubmit=${form.submit}>
@@ -117,7 +120,8 @@ const FilingView = ({ meeting, projects, onDone, toast }) => {
         <p class="subtle">${[meeting.when, meeting.duration && fmtDuration(meeting.duration)].filter(Boolean).join(" · ")}</p>
       </div>
 
-      <${FilingFields} form=${form} meeting=${meeting} projects=${projects} />
+      <${FilingFields} form=${form} meeting=${meeting} projects=${projects}
+        onAddProject=${addProject} />
 
       <footer class="pfoot">
         <${Button} variant="ghost" size="sm" onClick=${form.skip}
