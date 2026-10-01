@@ -151,6 +151,17 @@ class _Bridge(NSObject, protocols=[objc.protocolNamed("WKScriptMessageHandler")]
         self._handler(data)
 
 
+class _PopoverDelegate(NSObject, protocols=[objc.protocolNamed("NSPopoverDelegate")]):
+    def initWithClosed_(self, closed):
+        self = objc.super(_PopoverDelegate, self).init()
+        if self is not None:
+            self._closed = closed
+        return self
+
+    def popoverDidClose_(self, _notification):
+        self._closed()
+
+
 # -- the menubar glyph ------------------------------------------------------
 
 
@@ -268,6 +279,10 @@ class Shell:
         controller = NSViewController.alloc().init()
         controller.setView_(self._popover_view)
         self._popover.setContentViewController_(controller)
+        self._popover_delegate = _PopoverDelegate.alloc().initWithClosed_(self._popover_closed)
+        self._popover.setDelegate_(self._popover_delegate)
+        #: The dashboard was moved out of the way for the popover; put it back.
+        self._restore_window = False
         if base_url:
             self._load(self._popover_view, base_url + "popover.html")
 
@@ -306,6 +321,7 @@ class Shell:
         """Show the full dashboard in an app window, at a hash route."""
         if not self._base_url:
             return
+        self._restore_window = False  # it is coming to the front anyway
         self.close_popover()
         if self._window is None:
             self._window = self._make_window()
@@ -332,6 +348,18 @@ class Shell:
 
     def _show_popover(self) -> None:
         button = self._item.button()
+        # The popover needs the app active to take typing, and activating
+        # brings every open window forward -- the dashboard too, from behind
+        # whatever the user was working in. Keep it where it was.
+        window = self._window
+        if (
+            not self._app.isActive()
+            and window is not None
+            and window.isVisible()
+            and not window.isMiniaturized()
+        ):
+            window.orderOut_(None)
+            self._restore_window = True
         activate()
         self._popover.showRelativeToRect_ofView_preferredEdge_(button.bounds(), button, NSRectEdgeMinY)
         window = self._popover_view.window()
@@ -339,6 +367,13 @@ class Shell:
             window.makeKeyWindow()
             window.makeFirstResponder_(self._popover_view)
         self._eval(self._popover_view, "window.dispatchEvent(new Event('fly:shown'))")
+
+    def _popover_closed(self) -> None:
+        if self._restore_window:
+            self._restore_window = False
+            if not self._window.isVisible():
+                # Back behind the other apps' windows, where it was.
+                self._window.orderBack_(None)
 
     def _show_menu(self) -> None:
         self.close_popover()
