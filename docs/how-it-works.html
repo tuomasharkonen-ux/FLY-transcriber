@@ -324,6 +324,32 @@
   .req .em { font-size: 30px; width: 40px; text-align: center; flex: none; }
   .req span { color: var(--text-2); }
 
+  /* ---------- 10: the install itself ---------- */
+  .inst { display: grid; grid-template-columns: 1fr 320px; gap: 40px; margin-top: 26px; align-items: start; }
+  .term { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 22px 28px;
+    font: 17px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .term .q { color: var(--text-2); margin-bottom: 14px; }
+  .term .q b { color: var(--text); font-weight: 600; }
+  .srow { display: grid; grid-template-columns: 54px 1fr 26px; align-items: baseline; margin-top: 10px; }
+  .srow .n { color: var(--text-2); }
+  .srow .ok { color: var(--green-hi); text-align: right; }
+  .srow small { grid-column: 2; display: block; font-size: 13.5px; color: var(--text-2); opacity: .75; }
+  .dl { grid-column: 2; height: 6px; margin-top: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .dl i { display: block; height: 100%; width: 0; background: var(--teal); }
+  .active .dl i { animation: fill 2s 2.5s ease-in-out forwards; }
+  @keyframes fill { to { width: 100%; } }
+  .term .done { margin-top: 16px; color: var(--green-hi); font-weight: 700; }
+  .term .done span { color: var(--text-2); font-weight: 400; }
+  .choices { display: grid; gap: 16px; }
+  .choices h3 { font-size: 19px; color: var(--text-2); font-weight: 600; }
+  .choice { padding: 18px 22px; border-radius: 18px; background: var(--bg-2); border: 2px solid var(--line); }
+  .choice.rec { border-color: var(--green); }
+  .choice b { display: block; font-size: 22px; margin-bottom: 4px; }
+  .choice b em { font-style: normal; font-size: 14px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--green-hi); margin-left: 8px; }
+  .choice span { font-size: 17px; color: var(--text-2); line-height: 1.4; }
+  .inst-note { margin-top: 22px; font-size: 19px; color: var(--text-2); }
+
   /* ---------- chrome ---------- */
   #progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--green-hi);
     transition: width .5s ease; }
@@ -584,12 +610,35 @@
     <p class="cmd-label a" style="--d:.2s">Run this in your terminal</p>
     <div class="cmd a" style="--d:.3s"><span class="pr">$ </span>curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh \
     | sh</div>
-    <p class="cmd-note a" style="--d:.5s">Installs the app and the speech models, and adds FLY to Applications and a login item. No accounts or tokens.</p>
+    <p class="cmd-note a" style="--d:.5s">FLY transcribes with local AI models, so your audio never leaves your Mac and it works offline. That's why the install includes a one-time download of about 3 GB. No accounts or tokens.</p>
     <div class="reqs">
       <div class="req a" style="--d:.8s"><span class="em">🍎</span><div>Apple Silicon Mac <span>· macOS 14.2+</span></div></div>
       <div class="req a" style="--d:.95s"><span class="em">💾</span><div>About 5 GB <span>· for the speech models</span></div></div>
       <div class="req a" style="--d:1.1s"><span class="em">🤖</span><div>An AI agent <span>· such as Claude Code, optional</span></div></div>
     </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="kicker a">Get started</div>
+    <h2 class="a" style="--d:.1s">What the install looks like</h2>
+    <div class="inst">
+      <div class="term a" style="--d:.3s">
+        <div class="q">When should FLY download its speech models? <b>1</b> now · 2 later</div>
+        <div class="srow a" style="--d:.9s"><span class="n">[1/5]</span><span>The tools FLY runs on<small>uv, ownscribe (WhisperX + pyannote)</small></span><span class="ok a pop" style="--d:1.3s">✓</span></div>
+        <div class="srow a" style="--d:1.4s"><span class="n">[2/5]</span><span>The FLY app<small>fly-transcriber, with its own ffmpeg</small></span><span class="ok a pop" style="--d:1.8s">✓</span></div>
+        <div class="srow a" style="--d:1.9s"><span class="n">[3/5]</span><span>Speaker model, 30 MB<small>pyannote community-1, checksum-verified</small></span><span class="ok a pop" style="--d:2.3s">✓</span></div>
+        <div class="srow a" style="--d:2.4s"><span class="n">[4/5]</span><span>Speech models, about 3 GB<small>Whisper large-v3 + word alignment</small></span><span class="ok a pop" style="--d:4.6s">✓</span><div class="dl"><i></i></div></div>
+        <div class="srow a" style="--d:4.8s"><span class="n">[5/5]</span><span>Applications and login item<small>FLY.app for Spotlight, starts with your Mac</small></span><span class="ok a pop" style="--d:5.2s">✓</span></div>
+        <div class="done a" style="--d:5.6s">FLY is installed. <span>Its window opens by itself.</span></div>
+      </div>
+      <div class="choices">
+        <h3 class="a" style="--d:.5s">The one question it asks</h3>
+        <div class="choice rec a" style="--d:.7s"><b>1 · Now<em>Recommended</em></b><span>Ready to record as soon as the install finishes.</span></div>
+        <div class="choice a" style="--d:.9s"><b>2 · Later</b><span>The models download during your first recording, so that transcript takes longer and needs internet.</span></div>
+      </div>
+    </div>
+    <p class="inst-note a" style="--d:6s">About 5 to 20 minutes, mostly the download. If anything stops it, it says so; running the command again picks up where it left off.</p>
   </section>
 
   <div id="progress"></div>

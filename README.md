@@ -52,7 +52,8 @@ things up, while your own agent has the project context and a stronger model.
 
 - A Mac with Apple Silicon (M1 or later) running **macOS 14.2 or later**
   (needed for system audio capture)
-- About **5 GB of disk space** for the speech models, downloaded during install
+- About **5 GB of disk space**, mostly for the speech models
+- An internet connection while installing (afterwards FLY works offline)
 - An AI coding agent such as [Claude Code](https://claude.com/claude-code) to
   turn transcripts into notes (optional)
 
@@ -64,29 +65,46 @@ Run this in your terminal:
 curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh
 ```
 
-The script checks your Mac meets the requirements and then:
+It takes about 5 to 20 minutes, mostly a one-time download of about 3 GB.
+FLY transcribes with local AI models, which is how it stays completely offline,
+and it needs them to work. Leave the Terminal window open until it says
+**FLY is installed**.
 
-1. installs [uv](https://docs.astral.sh/uv/) if you don't have it (no Homebrew,
-   Xcode tools or other setup needed; the app brings its own `ffmpeg`),
-2. installs [ownscribe](https://github.com/paberr/ownscribe) (the recording and
-   transcription engine) and this app as `uv` tools,
-3. downloads the speaker model (30 MB) and the speech models (about 3 GB).
-   FLY transcribes with local AI models, which is how it stays completely
-   offline, and it needs them to work. The script asks whether to download
-   them now (recommended) or later, during your first recording,
-4. adds `FLY.app` to `/Applications` (or `~/Applications` if your account can't
-   write there), and a login item so the app starts with your Mac, then starts
-   it and opens the dashboard.
+The script checks your Mac meets the requirements, explains what it is about
+to do, and asks one question: download the speech models **now**
+(recommended), or **later**, during your first recording (that transcript then
+takes longer and needs an internet connection). Press Enter for now. Then it
+works through five numbered steps, each with a dimmed line naming exactly what
+it installs:
 
-No accounts or tokens are needed. Look for the FLY icon (a microphone with
-wings) in the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to
-bring it back; opening it while it is running just shows the dashboard.
+1. **The tools FLY runs on:** [uv](https://docs.astral.sh/uv/) (into
+   `~/.local/bin`, if you don't have it) and
+   [ownscribe](https://github.com/paberr/ownscribe), the recording and
+   transcription engine (WhisperX + pyannote), as a `uv` tool on Python 3.12.
+2. **The FLY app,** as a `uv` tool, from the latest release's source archive.
+   It brings its own `ffmpeg`.
+3. **The speaker model** (30 MB, checksum-verified) into
+   `~/.local/share/fly-transcriber/models/`.
+4. **The speech models** (about 3 GB: Whisper `large-v3` and a word-alignment
+   model) into `~/.cache/huggingface/`, unless you chose later.
+5. **`FLY.app`** in `/Applications` (or `~/Applications` if your account can't
+   write there), so Spotlight finds it, and a login item so FLY starts with
+   your Mac.
+
+No Homebrew, Xcode tools, admin password, accounts or tokens are needed. At the
+end FLY starts and its window opens; its icon (a microphone with wings) sits in
+the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to bring it
+back; opening it while it is running just shows the window.
+
+If something goes wrong, the script ends with **FLY was not fully installed**
+after the error. Running the same command again picks up where it stopped.
 
 Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 
 - `--no-login-item`: don't start the app at login.
 - `--warmup` / `--no-warmup`: download the speech models now / during your
-  first recording, without asking.
+  first recording, without asking. With no terminal to ask in, it downloads
+  them now.
 - `FLY_VERSION=v0.2.0` (an environment variable, set before `sh`): install that
   release instead of the latest one.
 
@@ -126,12 +144,12 @@ when a recording starts, so add them before the meeting. You can also pin the
    Open the panel and click the one marked **Save**. Add a title and
    participants, name each speaker (each one is shown with their first line so
    you can tell them apart), pick a project, and save.
+4. Ask your agent to process the inbox. The skill turns the transcript into a
+   note and deletes the raw file.
 
 Clicking a saved recording opens its transcript in the FLY window. Right-click
 the icon for the rest: New Project, the recordings folder, advanced settings
 and Quit.
-4. Ask your agent to process the inbox. The skill turns the transcript into a
-   note and deletes the raw file.
 
 Processing isn't instant. It runs at about **0.8× realtime**, so a one-hour
 meeting takes around 50 minutes, plus speaker detection.
@@ -181,7 +199,9 @@ be redone.
 ## Privacy and consent
 
 Everything stays on your Mac: audio, transcripts and the models that produce
-them. The only network traffic is the model download during install.
+them. The only network traffic is the install itself, including the model
+download (or, if you chose to download the models later, that download during
+your first recording).
 The app's UI is served on `127.0.0.1` only.
 
 **Tell people when you record.** In many places, including the EU, you need
@@ -197,6 +217,7 @@ participants' consent to record a meeting. It's your responsibility to ask.
 | `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand |
 | `~/ownscribe/` | Recordings and original transcripts |
 | `~/.local/share/fly-transcriber/models/` | The speaker model |
+| `~/.cache/huggingface/` | The speech models |
 
 Useful settings:
 
@@ -213,7 +234,9 @@ right-click menu.
 
 Run the install command again. It quits FLY if it's running (it refuses while a
 meeting is being recorded or processed, so nothing is lost), installs the latest
-release and starts FLY again. Your settings, recordings and saved state stay.
+release and starts FLY again. Models already downloaded aren't downloaded
+again, and it doesn't ask the download question. Your settings, recordings and
+saved state stay.
 The version is shown at the bottom of the dashboard, and
 `fly-transcriber --version` prints it.
 
@@ -234,8 +257,8 @@ if you want them gone.
   on Core Audio taps.
 - **Meetings are named by hand** at saving. An unnamed meeting is saved as
   `28-09-26-meeting-1420.md`.
-- **Permission prompts say "python3.12"**, not "FLY", for the same reason: FLY
-  is not yet a packaged, signed Mac app.
+- **Permission prompts say "python3.12"**, not "FLY", because FLY is not yet a
+  packaged, signed Mac app.
 - **No macOS notifications** unless the app runs as a signed bundle. The
   menubar icon is the status indicator.
 
@@ -296,15 +319,17 @@ architecture overview.
 To publish one:
 
 ```bash
-# 1. set `version` in pyproject.toml (e.g. 0.2.0), then refresh the lockfile
+# 1. set `version` in pyproject.toml (e.g. 0.3.0), then refresh the lockfile
 uv lock
-git commit -am "Release v0.2.0" && git push
+git commit -am "Release v0.3.0" && git push
 # 2. tag it and publish
-git tag v0.2.0 && git push origin v0.2.0
-gh release create v0.2.0 --generate-notes
+git tag v0.3.0 && git push origin v0.3.0
+gh release create v0.3.0 --generate-notes
 ```
 
-Anyone who runs the installer or updates after that gets `v0.2.0`. The speaker
+Anyone who runs the installer or updates after that gets `v0.3.0`. Changes to
+`install.sh` itself are live as soon as they are on `main` (the install command
+fetches it from there), so keep it working with the latest release. The speaker
 model has its own release, `speaker-model-v1`, which the installer downloads
 separately; its name does not start with `v`, so it is never taken for an app
 release.
