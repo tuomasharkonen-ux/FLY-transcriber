@@ -168,6 +168,24 @@ EOF
   done
 }
 
+# The FLY logo, a microphone with wings, as on the app icon. The wings are
+# peach (256 colours: Terminal before macOS 26 has no 24-bit colour); the mic
+# keeps the terminal's own text colour, so it shows on light and dark themes.
+# Only on a terminal: in a log it is just noise.
+logo() {
+  [ -t 1 ] || return 0
+  p="$(printf '\033[38;5;173m')"; r="$(printf '\033[0m')"
+  echo
+  printf '%s\n' \
+    "${p} ▄▒▒▒▄▄${r}  ▄██▄  ${p}▄▄▒▒▒▄${r}" \
+    "  ${p}▀▒▒▒▒▒▒${r}████${p}▒▒▒▒▒▒▀${r}" \
+    "     ${p}▀▒▒▒${r}████${p}▒▒▒▀${r}" \
+    "       █ ▀▀▀▀ █" \
+    "        ▀▄▄▄▄▀" \
+    "          ██" \
+    "        ▀▀▀▀▀▀"
+}
+
 # True if the default speech model is already in the HuggingFace cache (a
 # reinstall or update), so there is nothing big left to ask about.
 speech_model_cached() {
@@ -259,6 +277,7 @@ if [ -n "$free_gb" ] && [ "$free_gb" -lt 6 ]; then
   warn "Only $free_gb GB of disk space is free; FLY needs about 5 GB. Free up some space if the download fails."
 fi
 
+logo
 cat <<'EOF'
 
 Installing FLY, the Faithful Logger of Yapping.
