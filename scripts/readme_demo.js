@@ -18,7 +18,7 @@
     speakers: [S0, S1],
     samples: { [S0]: "Is the release still on for Friday?", [S1]: "Yes, if the tests pass." },
     filed: filed ? [{ project: filed, path: `/Users/me/${filed}/x.md`, at: "" }] : [],
-    state: { title: "", participants: [], speaker_names: {}, pending_project: "", dismissed: false },
+    state: { title: "", speaker_names: {}, pending_project: "", dismissed: false },
     ...extra,
   });
 
@@ -152,9 +152,8 @@
     [700, () => pointAt($(".prow"), 0.5)],
     [800, () => { hideCursor(); $(".prow").click(); }],
     ...typing(0, "Release sync", [3, 7, 10, 12]),
-    ...typing(1, "Aino, Mikko", [5, 11]),
-    ...typing(2, "Aino", [2, 4]),
-    ...typing(3, "Mikko", [3, 5]),
+    ...typing(1, "Aino", [2, 4]),
+    ...typing(2, "Mikko", [3, 5]),
     [800, () => { document.activeElement.blur(); pointAt($(".pfile .btn-primary"), 0.6); }],
     [2600, () => { hideCursor(); $(".pfile .btn-primary").click(); }],
   ];

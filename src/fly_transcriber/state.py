@@ -39,7 +39,6 @@ class MeetingState:
     #: Project chosen when recording stopped, before processing finished.
     pending_project: str = ""
     title: str = ""
-    participants: list[str] = field(default_factory=list)
     #: Diarization label -> real name.
     speaker_names: dict[str, str] = field(default_factory=dict)
     #: Diarization label -> the label it is really the same person as.
@@ -57,7 +56,6 @@ class MeetingState:
         return cls(
             pending_project=data.get("pending_project", "") or "",
             title=data.get("title", "") or "",
-            participants=list(data.get("participants") or []),
             speaker_names=dict(data.get("speaker_names") or {}),
             speaker_merges=dict(data.get("speaker_merges") or {}),
             dismissed=bool(data.get("dismissed", False)),

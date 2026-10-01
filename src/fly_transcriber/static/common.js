@@ -191,7 +191,6 @@ export function native(message) {
  */
 export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
   const [title, setTitle] = useState(meeting.state.title || meeting.title || "");
-  const [participants, setParticipants] = useState((meeting.state.participants || []).join(", "));
   const [names, setNames] = useState({ ...(meeting.state.speaker_names || {}) });
   const [merges, setMerges] = useState({ ...(meeting.state.speaker_merges || {}) });
   // The last choice, if that project is still configured.
@@ -214,7 +213,6 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
         meeting: meeting.name,
         project,
         title: title.trim(),
-        participants: participants.split(",").map((s) => s.trim()).filter(Boolean),
         speaker_names,
         speaker_merges: merges,
       });
@@ -235,7 +233,7 @@ export function useFilingForm(meeting, projects, { onFiled, onSkipped }) {
   };
 
   return {
-    title, setTitle, participants, setParticipants, names, setNames, merges, setMerges,
+    title, setTitle, names, setNames, merges, setMerges,
     project, setProject, busy, error, submit, skip,
   };
 }
@@ -312,10 +310,6 @@ export const FilingFields = ({ form, meeting, projects, onAddProject }) => html`
       <input class="input" value=${form.title} placeholder="Weekly sync"
         onInput=${(e) => form.setTitle(e.currentTarget.value)} />
     <//>
-    <${Field} label="Participants" hint="Comma-separated.">
-      <input class="input" value=${form.participants} placeholder="Aino, Mikko, Sara"
-        onInput=${(e) => form.setParticipants(e.currentTarget.value)} />
-    <//>
 
     ${rawSpeakers(meeting).length > 0 && html`
       <div class="field">
@@ -334,7 +328,7 @@ export const FilingFields = ({ form, meeting, projects, onAddProject }) => html`
               </div>
             </div>`)}
         </div>
-        <span class="field-hint">Names and merges apply to the saved copy only. Merge a speaker that was split in two.</span>
+        <span class="field-hint">Named speakers become the note's participants. Names and merges apply to the saved copy only. Merge a speaker that was split in two.</span>
       </div>`}
 
     ${projects.length > 0 && html`

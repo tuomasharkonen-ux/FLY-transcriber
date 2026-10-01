@@ -143,8 +143,8 @@ when a recording starts, so add them before the meeting. You can also pin the
 2. **Stop recording** when the meeting ends. Processing starts on its own; the
    icon becomes a waveform and the panel shows progress.
 3. When it's done, the icon shows how many recordings are waiting to be saved.
-   Open the panel and click the one marked **Save**. Add a title and
-   participants, name each speaker (each one is shown with their first line so
+   Open the panel and click the one marked **Save**. Add a title,
+   name each speaker (each one is shown with their first line so
    you can tell them apart), pick a project, and save.
 4. Ask your agent to process the inbox. The skill turns the transcript into a
    note and deletes the raw file.

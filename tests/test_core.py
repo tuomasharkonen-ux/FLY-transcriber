@@ -469,13 +469,26 @@ def test_speaker_samples_empty_without_diarization(tmp_path):
     assert speaker_samples(parse_meeting_dir(d)) == {}
 
 
-def test_participants_written_to_frontmatter(tmp_path):
+def test_participants_are_the_named_speakers(tmp_path):
     d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
     project = Project(name="Acme", path=str(tmp_path / "inbox"), frontmatter="obsidian")
     note = file_meeting(
-        parse_meeting_dir(d), project, participants=["Sam Virtanen", "Alex"]
+        parse_meeting_dir(d), project, speaker_names={"SPEAKER_00": "Sam Virtanen"}
     ).path.read_text(encoding="utf-8")
-    assert "participants: [Sam Virtanen, Alex]" in note
+    # SPEAKER_01 stays anonymous, so it is a speaker but not a participant.
+    assert "participants: [Sam Virtanen]" in note
+    assert "speakers: [Sam Virtanen, SPEAKER_01]" in note
+
+
+def test_participants_follow_merges(tmp_path):
+    d = make_meeting(tmp_path / "src", transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
+    project = Project(name="Acme", path=str(tmp_path / "inbox"), frontmatter="obsidian")
+    note = file_meeting(
+        parse_meeting_dir(d), project,
+        speaker_names={"SPEAKER_00": "Sam"},
+        speaker_merges={"SPEAKER_01": "SPEAKER_00"},
+    ).path.read_text(encoding="utf-8")
+    assert "participants: [Sam]" in note
 
 
 def test_speaker_names_rewrite_transcript(tmp_path):
@@ -984,7 +997,7 @@ def test_timestamps_formatted_from_seconds():
 
 def test_ledger_records_filing(tmp_path, monkeypatch):
     monkeypatch.setattr(meeting_state, "STATE_PATH", tmp_path / "state.json")
-    meeting_state.update("m1", title="Design review", participants=["Sam"])
+    meeting_state.update("m1", title="Design review")
     meeting_state.record_filed("m1", "Acme", Path("/x/28-09-26-design-review.md"))
 
     entry = meeting_state.get("m1")
@@ -1137,14 +1150,14 @@ def test_server_files_meeting():
     base, server = _client(api)
     try:
         body = json.dumps(
-            {"meeting": "m1", "project": "Acme", "title": "T", "participants": ["Sam"]}
+            {"meeting": "m1", "project": "Acme", "title": "T", "speaker_names": {"SPEAKER_00": "Sam"}}
         ).encode()
         req = urllib.request.Request(
             base + "/api/file", data=body, headers={"Content-Type": "application/json"}
         )
         assert json.loads(urllib.request.urlopen(req).read())["path"] == "/x/a.md"
         assert calls["file"][0] == "m1"
-        assert calls["file"][2]["participants"] == ["Sam"]
+        assert calls["file"][2]["speaker_names"] == {"SPEAKER_00": "Sam"}
     finally:
         server.shutdown()
 
@@ -1497,17 +1510,16 @@ def test_frontmatter_survives_titles_and_names_people_type(tmp_path, frontmatter
         name="Acme", path=str(tmp_path / "inbox"), frontmatter=frontmatter, tags=["acme: q4"]
     )
     title = 'Acme: kickoff #3 [draft]\nstatus: done'
-    participants = ["Sam, the PM", "O'Brien", "yes", "2026"]
+    names = {"SPEAKER_00": "Aino: host", "SPEAKER_01": "O'Brien, the PM"}
     note = file_meeting(
-        parse_meeting_dir(d), project, participants=participants, title=title,
-        speaker_names={"SPEAKER_00": "Aino: host", "SPEAKER_01": "Alex"},
+        parse_meeting_dir(d), project, title=title, speaker_names=names,
     ).path.read_text(encoding="utf-8")
 
     meta = yaml.safe_load(note.split("---")[1])
     assert meta["title"] == "Acme: kickoff #3 [draft] status: done"
     assert meta["status"] == "raw"  # a newline in the title cannot add a field
-    assert meta["participants"] == participants
-    assert meta["speakers"] == ["Aino: host", "Alex"]
+    assert meta["participants"] == list(names.values())
+    assert meta["speakers"] == list(names.values())
     assert meta["source"] == str(d)
     assert "# Acme: kickoff #3 [draft] status: done\n" in note
 

@@ -80,7 +80,6 @@ class FilingResult:
 def file_meeting(
     meeting: Meeting,
     project: Project,
-    participants: list[str] | None = None,
     speaker_names: dict[str, str] | None = None,
     title: str | None = None,
     speaker_merges: dict[str, str] | None = None,
@@ -88,10 +87,9 @@ def file_meeting(
 ) -> FilingResult:
     """Write ``meeting``'s transcript into ``project``'s folder.
 
-    ``participants`` is the roster captured when recording stopped -- an
-    unordered list, since speaker identities are not known at that point.
     ``speaker_names`` maps diarization labels (``SPEAKER_00``) to real names and
-    can only be supplied after transcription. ``title`` names the meeting;
+    can only be supplied after transcription; the named speakers are the note's
+    ``participants``. ``title`` names the meeting;
     without summarization there is nothing to derive one from.
 
     ``speaker_merges`` maps a label to the label it is the same person as.
@@ -116,7 +114,7 @@ def file_meeting(
     else:
         path = _unique_path(target_dir / filename_for(meeting, project, title))
     path.write_text(
-        render(meeting, project, participants, speaker_names, title, speaker_merges),
+        render(meeting, project, speaker_names, title, speaker_merges),
         encoding="utf-8",
     )
     return FilingResult(path=path, project=project.name)
@@ -143,7 +141,6 @@ def _unique_path(path: Path) -> Path:
 def render(
     meeting: Meeting,
     project: Project,
-    participants: list[str] | None = None,
     speaker_names: dict[str, str] | None = None,
     title: str | None = None,
     speaker_merges: dict[str, str] | None = None,
@@ -155,7 +152,7 @@ def render(
     heading = " ".join((title or meeting.title or "Meeting").split())
 
     lines = _frontmatter(
-        meeting, project, started, heading, participants, speaker_names, speaker_merges
+        meeting, project, started, heading, speaker_names, speaker_merges
     )
     lines += ["", f"# {heading}", ""]
 
@@ -180,7 +177,6 @@ def _frontmatter(
     project: Project,
     started: datetime,
     title: str,
-    participants: list[str] | None,
     speaker_names: dict[str, str] | None,
     speaker_merges: dict[str, str] | None = None,
 ) -> list[str]:
@@ -188,7 +184,8 @@ def _frontmatter(
     mapping = speaker_names or {}
     merged = turn_speakers(merge_speakers(meeting.turns, speaker_merges))
     speakers = _yaml_list(dict.fromkeys(mapping.get(s, s) for s in merged))
-    people = _yaml_list(participants or [])
+    # Only speakers given a real name count: anonymous labels are not people.
+    people = _yaml_list(dict.fromkeys(mapping[s].strip() for s in merged if mapping.get(s, "").strip()))
     title = yaml_str(title)
     source = yaml_str(str(meeting.directory))
 

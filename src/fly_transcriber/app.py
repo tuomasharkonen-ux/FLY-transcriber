@@ -268,7 +268,6 @@ class MeetingRecorderApp:
                     ],
                     "state": {
                         "title": entry.title,
-                        "participants": entry.participants,
                         "speaker_names": entry.speaker_names,
                         "speaker_merges": entry.speaker_merges,
                         "pending_project": entry.pending_project,
@@ -327,7 +326,6 @@ class MeetingRecorderApp:
         directory = self._meeting_directory(name)
 
         title = (payload.get("title") or "").strip()
-        participants = [str(p).strip() for p in payload.get("participants") or [] if str(p).strip()]
         names = {
             str(k): str(v).strip()
             for k, v in (payload.get("speaker_names") or {}).items()
@@ -346,12 +344,12 @@ class MeetingRecorderApp:
         entry = meeting_state.get(name)
         earlier = [Path(f.path) for f in entry.filed if f.project == project.name]
         result = file_meeting(
-            meeting, project, participants, names, title,
+            meeting, project, names, title,
             speaker_merges=merges, replace=earlier[-1] if earlier else None,
         )
 
         meeting_state.update(
-            name, title=title, participants=participants, speaker_names=names,
+            name, title=title, speaker_names=names,
             speaker_merges=merges,
         )
         meeting_state.record_filed(name, project.name, result.path)

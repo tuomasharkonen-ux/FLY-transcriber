@@ -26,7 +26,7 @@ TURNS = [
 ]
 
 STATE = {
-    "acme-sync": {"title": "Acme weekly sync", "participants": ["Aino", "Mikko"],
+    "acme-sync": {"title": "Acme weekly sync",
                   "speaker_names": {"SPEAKER_00": "Aino"}, "pending_project": "Acme"},
 }
 
@@ -39,7 +39,7 @@ def meeting(name, title, when, duration, speakers, filed=(), processing=False, t
         "speakers": speakers,
         "samples": {s: next(t for sp, _, t in TURNS if sp == s) for s in speakers},
         "filed": [{"project": p, "path": f"/Users/me/{p}/meetings/_inbox/28-09-26-{name}.md", "at": ""} for p in filed],
-        "state": {"title": entry.get("title", ""), "participants": entry.get("participants", []),
+        "state": {"title": entry.get("title", ""),
                   "speaker_names": entry.get("speaker_names", {}),
                   "pending_project": entry.get("pending_project", ""),
                   "dismissed": entry.get("dismissed", False)},

@@ -290,9 +290,6 @@ const RecordingView = ({ meeting, onFile, toast }) => {
                     </li>`)}
                 </ul>`
               : html`<p class="subtle">No speaker labels.</p>`}
-            ${meeting.state.participants?.length > 0 && html`
-              <h3>Participants</h3>
-              <p>${meeting.state.participants.join(", ")}</p>`}
           </div>
           <div class="card">
             <h3>Saved to</h3>

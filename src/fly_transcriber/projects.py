@@ -111,8 +111,8 @@ have the better model and the project context.
   than as obvious noise. When something reads oddly, treat it as suspect.
 - **`speakers:`** are anonymous labels (`SPEAKER_00`) unless they were mapped
   to real names at saving time.
-- **`participants:`** is a roster typed by hand when the recording stopped. It
-  is not linked to the speaker labels and may be incomplete.
+- **`participants:`** lists the speakers given a real name at saving, so it is
+  empty when none were named and omits anyone who never spoke.
 - **Speaker counts are auto-detected** and can be wrong -- both merging two
   quiet people into one label and splitting one person across two.
 
