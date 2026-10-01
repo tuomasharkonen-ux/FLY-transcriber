@@ -96,7 +96,7 @@ When should FLY download its speech models (about 3 GB)?
 
 EOF
   while :; do
-    printf 'Type 1 or 2 and press Return [1]: '
+    printf 'Type 1 or 2 and press Enter [1]: '
     read -r answer </dev/tty || answer=1
     case "$answer" in
       ''|1) warmup=1; return ;;
@@ -322,7 +322,7 @@ cat <<'EOF'
 - FLY lives in the menubar at the top of your screen: look for a microphone
   with wings. Its window should have opened just now.
 - If you quit it, open it again from Spotlight: press Cmd-Space, type FLY and
-  press Return. It also starts by itself when you log in.
+  press Enter. It also starts by itself when you log in.
 - The first time you record, macOS asks to let FLY use the microphone and the
   computer's audio. The request is shown as "python3.12": that is FLY. Click
   Allow.
