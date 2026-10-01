@@ -1373,13 +1373,32 @@ def test_progress_prediction_adapts_to_history(tmp_path, monkeypatch):
     from fly_transcriber import progress
 
     monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
-    assert progress.predict(1000) == pytest.approx(1000 * progress.DEFAULT_RATES["faster-whisper"])
+    assert progress.predict(1000) == pytest.approx(30 + 1000 * 0.37)
 
-    progress.record(10, 5)  # too short to learn from
+    progress.record(59, 50)  # nearly all start-up: too short to learn from
     assert not (tmp_path / "timings.json").exists()
-    progress.record(600, 120)
-    progress.record(1200, 240)
-    assert progress.predict(3000) == pytest.approx(600)  # median rate 0.2
+    progress.record(600, 150)
+    progress.record(1200, 270)
+    assert progress.predict(3000) == pytest.approx(30 + 3000 * 0.2)
+
+
+def test_progress_counts_start_up_time(tmp_path, monkeypatch):
+    """A 5-minute MLX recording took 112 s; per-second scaling alone predicted 50 s
+    and the bar sat at its end for a minute."""
+    from fly_transcriber import progress
+
+    monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
+    assert progress.predict(315, "mlx") == pytest.approx(112, rel=0.15)
+    progress.record(315, 112, "mlx")
+    assert progress.predict(315, "mlx") == pytest.approx(112)
+
+
+def test_progress_ignores_old_short_samples(tmp_path, monkeypatch):
+    from fly_transcriber import progress
+
+    monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
+    (tmp_path / "timings.json").write_text("[[31, 205.3]]", encoding="utf-8")  # a first-run download
+    assert progress.predict(1000) == pytest.approx(30 + 1000 * 0.37)
 
 
 def test_progress_keeps_timings_per_engine(tmp_path, monkeypatch):
@@ -1388,20 +1407,24 @@ def test_progress_keeps_timings_per_engine(tmp_path, monkeypatch):
 
     monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
     progress.record(600, 240)  # faster-whisper
-    assert progress.predict(1000, "mlx") == pytest.approx(1000 * progress.DEFAULT_RATES["mlx"])
-    progress.record(600, 90, "mlx")
+    assert progress.predict(1000, "mlx") == pytest.approx(60 + 1000 * 0.14)
+    progress.record(600, 120, "mlx")
     assert (tmp_path / "timings-mlx.json").exists()
-    assert progress.predict(1000, "mlx") == pytest.approx(150)
-    assert progress.predict(1000) == pytest.approx(400)
+    assert progress.predict(1000, "mlx") == pytest.approx(60 + 1000 * 0.1)
+    assert progress.predict(1000) == pytest.approx(30 + 1000 * 0.35)
 
 
-def test_progress_fraction_is_capped_below_done():
+def test_progress_keeps_moving_past_the_prediction():
     from fly_transcriber import progress
 
     assert progress.fraction(0, 100) == 0
-    assert progress.fraction(50, 100) == pytest.approx(0.475)
-    assert progress.fraction(500, 100) == progress.CAP
     assert progress.fraction(5, 0) == 0
+    assert progress.fraction(50, 100) == pytest.approx(0.45)
+    assert progress.fraction(100, 100) == pytest.approx(progress.DUE)
+    assert progress.fraction(200, 100) == pytest.approx((progress.DUE + progress.CAP) / 2)
+    later = [progress.fraction(t, 100) for t in (100, 150, 300, 1000, 10**6)]
+    assert later == sorted(later) and len(set(later)) == len(later)
+    assert later[-1] < progress.CAP < 1
 
 
 def test_merged_speakers_become_one_in_the_saved_note(tmp_path):

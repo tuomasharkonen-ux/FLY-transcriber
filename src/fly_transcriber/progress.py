@@ -1,9 +1,10 @@
 """Estimate how far along processing is.
 
-ownscribe reports phases but no percentage, so progress is a prediction: the
-time spent processing past runs, per second of audio, scaled to this recording.
-Each successful run adds a sample, so the estimate adapts to the machine. The
-engines differ about fourfold, so each keeps its own samples.
+ownscribe reports phases but no percentage, so progress is a prediction: a fixed
+start-up time (the stop handoff, loading three models) plus a rate per second of
+audio, learnt from past runs on this machine. The fixed part matters: it was half
+of a 5-minute recording's processing, and without it short recordings sat at the
+end of the bar. The engines differ about fourfold, so each keeps its own samples.
 """
 
 from __future__ import annotations
@@ -15,14 +16,19 @@ from pathlib import Path
 #: Samples for faster-whisper; other engines get a file of their own beside it.
 TIMINGS_PATH = Path("~/.config/fly-transcriber/timings.json").expanduser()
 
-#: Processing seconds per audio second before any run has been timed. Measured
-#: on an M4 Pro with diarization: 0.38 (faster-whisper on CPU), 0.15 (MLX).
-DEFAULT_RATES = {"faster-whisper": 0.4, "mlx": 0.16}
-#: Recordings shorter than this are dominated by model loading; don't learn from them.
-MIN_AUDIO = 30
+#: Seconds of processing that don't depend on the recording's length, and
+#: processing seconds per audio second before any run has been timed. Measured on
+#: an M4 Pro with diarization: a 25-minute and a 5-minute recording.
+OVERHEAD = {"faster-whisper": 30.0, "mlx": 60.0}
+DEFAULT_RATES = {"faster-whisper": 0.37, "mlx": 0.14}
+MIN_RATE = 0.02
+#: Recordings shorter than this are nearly all start-up; don't learn a rate from them.
+MIN_AUDIO = 60
 MAX_SAMPLES = 10
-#: Never claim completion before ownscribe says so.
-CAP = 0.95
+#: Where the bar is when the predicted time is up. Past it, the bar keeps creeping
+#: towards CAP rather than stopping, and never claims completion before ownscribe.
+DUE = 0.9
+CAP = 0.99
 
 
 def _path(engine: str) -> Path:
@@ -41,18 +47,17 @@ def _load(engine: str) -> list[list[float]]:
     return [
         s for s in data
         if isinstance(s, list) and len(s) == 2
-        and all(isinstance(x, (int, float)) for x in s) and s[0] > 0
+        and all(isinstance(x, (int, float)) for x in s) and s[0] >= MIN_AUDIO
     ]
 
 
 def predict(audio_seconds: float, engine: str = "faster-whisper") -> float:
     """Expected processing seconds for a recording of this length."""
-    rates = [proc / audio for audio, proc in _load(engine)]
-    if rates:
-        rate = statistics.median(rates)
-    else:
-        rate = DEFAULT_RATES.get(engine, DEFAULT_RATES["faster-whisper"])
-    return max(rate * audio_seconds, 1.0)
+    known = engine if engine in OVERHEAD else "faster-whisper"
+    overhead = OVERHEAD[known]
+    rates = [max((proc - overhead) / audio, MIN_RATE) for audio, proc in _load(engine)]
+    rate = statistics.median(rates) if rates else DEFAULT_RATES[known]
+    return overhead + rate * audio_seconds
 
 
 def record(audio_seconds: float, processing_seconds: float, engine: str = "faster-whisper") -> None:
@@ -71,7 +76,13 @@ def record(audio_seconds: float, processing_seconds: float, engine: str = "faste
 
 
 def fraction(elapsed: float, predicted: float) -> float:
-    """Progress in [0, CAP] after ``elapsed`` seconds of a predicted run."""
-    if predicted <= 0:
+    """Progress in [0, CAP) after ``elapsed`` seconds of a predicted run.
+
+    Linear up to DUE at the predicted time, then slower and slower: halfway from
+    DUE to CAP at twice the predicted time.
+    """
+    if predicted <= 0 or elapsed <= 0:
         return 0.0
-    return max(0.0, min(elapsed / predicted, 1.0)) * CAP
+    if elapsed <= predicted:
+        return DUE * elapsed / predicted
+    return DUE + (CAP - DUE) * (1 - predicted / elapsed)
