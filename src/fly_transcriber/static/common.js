@@ -255,6 +255,40 @@ const setMerge = (form, label, target) => {
   form.setMerges(next);
 };
 
+const nameOf = (form, label) => form.names[label] || prettyLabel(label);
+
+/**
+ * Merging is the exception, so it hides behind a text button: the picker shows
+ * only when asked for, and a merged speaker reads as a sentence with an undo.
+ */
+const SpeakerMerge = ({ form, meeting, label }) => {
+  const [open, setOpen] = useState(false);
+  const target = form.merges[label];
+  if (target) {
+    return html`
+      <div class="merge-line">
+        <span>Same person as <strong>${nameOf(form, target)}</strong></span>
+        <button type="button" class="text-btn" onClick=${() => setMerge(form, label, "")}>Undo</button>
+      </div>`;
+  }
+  const targets = mergeTargets(form, meeting, label);
+  if (!targets.length) return null;
+  if (!open) {
+    return html`<button type="button" class="text-btn" onClick=${() => setOpen(true)}>
+      Merge with another speaker</button>`;
+  }
+  return html`
+    <div class="merge-line">
+      <select class="input input-sm" value=""
+        aria-label=${`Which speaker is ${nameOf(form, label)} the same person as?`}
+        onChange=${(e) => { setMerge(form, label, e.currentTarget.value); setOpen(false); }}>
+        <option value="" disabled>Same person as…</option>
+        ${targets.map((other) => html`<option key=${other} value=${other}>${nameOf(form, other)}</option>`)}
+      </select>
+      <button type="button" class="text-btn" onClick=${() => setOpen(false)}>Cancel</button>
+    </div>`;
+};
+
 const ADD_PROJECT = "__add_project__";
 
 /** The two ways to get a first destination: shown before anything is typed. */
@@ -296,13 +330,7 @@ export const FilingFields = ({ form, meeting, projects, onAddProject }) => html`
                     onInput=${(e) => form.setNames({ ...form.names, [label]: e.currentTarget.value })} />
                   ${meeting.samples?.[label] && html`<span class="quote" title=${meeting.samples[label]}>“${meeting.samples[label]}”</span>`}`}
                 ${rawSpeakers(meeting).length > 1 && html`
-                  <select class="input input-sm" value=${form.merges[label] || ""}
-                    aria-label=${`Is ${form.names[label] || prettyLabel(label)} the same person as another speaker?`}
-                    onChange=${(e) => setMerge(form, label, e.currentTarget.value)}>
-                    <option value="">Separate person</option>
-                    ${mergeTargets(form, meeting, label).map((other) => html`
-                      <option key=${other} value=${other}>Same person as ${form.names[other] || prettyLabel(other)}</option>`)}
-                  </select>`}
+                  <${SpeakerMerge} form=${form} meeting=${meeting} label=${label} />`}
               </div>
             </div>`)}
         </div>

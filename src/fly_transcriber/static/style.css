@@ -366,7 +366,7 @@ main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 24p
 .stack { display: grid; gap: 18px; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
-.field { display: grid; gap: 6px; }
+.field { display: grid; gap: 6px; align-content: start; }
 .field-label { font-size: 13px; font-weight: 550; }
 .field-hint { font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
 
@@ -414,6 +414,17 @@ select.input {
 .speaker-map-row { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
 .speaker-map-row .avatar { margin-top: 4px; }
 .speaker-map-fields { display: grid; gap: 4px; min-width: 0; }
+.text-btn {
+  justify-self: start; padding: 2px 0; border: 0; background: none; cursor: pointer;
+  font: 12.5px var(--font); color: var(--text-3);
+  text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px;
+}
+.text-btn:hover { color: var(--text); text-decoration-color: currentColor; }
+.text-btn:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+.merge-line { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); }
+.merge-line .input { flex: 1; }
+.merge-line strong { color: var(--text); font-weight: 550; }
+
 .quote {
   font-size: 12.5px; color: var(--text-3); font-style: italic;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
