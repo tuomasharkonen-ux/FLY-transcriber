@@ -106,12 +106,12 @@ Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
   first recording, without asking. With no terminal to ask in, it downloads
   them now.
 - `FLY_VERSION=v0.2.0` (an environment variable, set before `sh`): install that
-  release instead of the latest one. `FLY_VERSION=main` installs work in
-  progress; nothing else ever does, and if the latest release cannot be looked
-  up the installer stops rather than falling back to `main`.
+  release instead of the latest one. `FLY_VERSION=main` installs unreleased
+  work in progress.
 
-The installer installs the newest [release](https://github.com/tuomasharkonen-ux/FLY-transcriber/releases),
-not whatever is on `main`.
+The installer installs the latest [release](https://github.com/tuomasharkonen-ux/FLY-transcriber/releases).
+If it can't find one, it stops and tells you, rather than installing something
+else.
 
 If you'd rather read the script before running it, download
 [`install.sh`](install.sh) and run `sh install.sh`.
@@ -201,8 +201,15 @@ be redone.
 Everything stays on your Mac: audio, transcripts and the models that produce
 them. The only network traffic is the install itself, including the model
 download (or, if you chose to download the models later, that download during
-your first recording).
-The app's UI is served on `127.0.0.1` only.
+your first recording). If you use a HuggingFace token instead of the bundled
+speaker model, FLY also checks the token with HuggingFace before each
+recording; no audio or text is sent.
+
+- The app's UI is served on `127.0.0.1` only, and answers only its own pages:
+  other websites you visit can't read from it, send it commands or show it
+  inside their own pages.
+- Your recordings folder and FLY's settings are readable only by your own
+  account, not by other accounts on the same Mac.
 
 **Tell people when you record.** In many places, including the EU, you need
 participants' consent to record a meeting. It's your responsibility to ask.
@@ -214,7 +221,7 @@ participants' consent to record a meeting. It's your responsibility to ask.
 | `~/.config/fly-transcriber/settings.toml` | App settings, also editable in Settings |
 | `~/.config/fly-transcriber/hf_token` | Optional HuggingFace token, only needed without the bundled speaker model |
 | `~/.config/fly-transcriber/state.json` | What was saved where, plus the titles and names you typed |
-| `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand |
+| `~/.config/ownscribe/config.toml` | Generated from settings before each recording; don't edit by hand (a file FLY didn't write is backed up once, as `config.toml.bak-*`) |
 | `~/ownscribe/` | Recordings and original transcripts |
 | `~/.local/share/fly-transcriber/models/` | The speaker model |
 | `~/.cache/huggingface/` | The speech models |
@@ -330,7 +337,9 @@ git tag v0.3.0 && git push origin v0.3.0
 gh release create v0.3.0 --generate-notes
 ```
 
-Anyone who runs the installer or updates after that gets `v0.3.0`. Changes to
+Tests run on GitHub for every push (`.github/workflows/tests.yml`); release
+from a commit where they passed. Anyone who runs the installer or updates after
+that gets `v0.3.0`. Changes to
 `install.sh` itself are live as soon as they are on `main` (the install command
 fetches it from there), so keep it working with the latest release. The speaker
 model has its own release, `speaker-model-v1`, which the installer downloads
