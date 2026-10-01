@@ -91,7 +91,7 @@ it installs:
    write there), so Spotlight finds it, and a login item so FLY starts with
    your Mac.
 
-No Homebrew, Xcode tools, admin password, accounts or tokens are needed. At the
+No accounts or tokens are needed. At the
 end FLY starts and its window opens; its icon (a microphone with wings) sits in
 the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to bring it
 back; opening it while it is running just shows the window.
