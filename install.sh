@@ -208,8 +208,7 @@ EOF
 printf '\033[2m%s\033[0m\n\n' \
   "For the technically minded: installs uv, ownscribe (WhisperX + pyannote) and" \
   "FLY as uv tools under ~/.local, models under ~/.local/share/fly-transcriber" \
-  "and ~/.cache/huggingface, FLY.app and a LaunchAgent. No admin password," \
-  "Homebrew or Xcode tools needed. Each step below names exactly what it adds."
+  "and ~/.cache/huggingface, FLY.app and a LaunchAgent."
 
 if speech_model_cached; then
   warmup=1
