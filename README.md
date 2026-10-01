@@ -91,10 +91,10 @@ it installs:
    write there), so Spotlight finds it, and a login item so FLY starts with
    your Mac.
 
-No accounts or tokens are needed. At the
-end FLY starts and its window opens; its icon (a microphone with wings) sits in
-the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to bring it
-back; opening it while it is running just shows the window.
+No accounts or tokens are needed. At the end FLY starts and its window opens;
+its icon (a microphone with wings) sits in the menubar. If you quit it, open
+**FLY** from Spotlight (⌘Space) to bring it back; opening it while it is
+running just shows the window.
 
 If something goes wrong, the script ends with **FLY was not fully installed**
 after the error. Running the same command again picks up where it stopped.
