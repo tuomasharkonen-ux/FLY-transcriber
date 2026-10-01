@@ -160,12 +160,12 @@ export const Toasts = ({ toasts }) => html`
 /** A microphone with fly wings. Mirrors favicon.svg. */
 export const Logo = ({ size = 28 }) => html`
   <svg class="logo" width=${size} height=${size} viewBox="0 0 32 32" aria-hidden="true">
-    <rect width="32" height="32" rx="9" fill="var(--brand)" />
+    <rect width="32" height="32" rx="9" fill="var(--logo-tile)" />
     <ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="var(--logo-wing)" fill-opacity=".85" />
     <ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="var(--logo-wing)" fill-opacity=".85" />
-    <rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="var(--brand-ink)" />
-    <path d="M14.4 9.6h3.2M14.4 12.2h3.2" stroke="var(--brand)" stroke-width="1.1" stroke-linecap="round" />
-    <path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="var(--brand-ink)" stroke-width="1.7" stroke-linecap="round" fill="none" />
+    <rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="var(--logo-ink)" />
+    <path d="M14.4 9.6h3.2M14.4 12.2h3.2" stroke="var(--logo-tile)" stroke-width="1.1" stroke-linecap="round" />
+    <path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="var(--logo-ink)" stroke-width="1.7" stroke-linecap="round" fill="none" />
   </svg>`;
 
 

@@ -6,12 +6,12 @@
 <title>FLY — how it works</title>
 <style>
   :root {
-    --bg: #07131b; --bg-2: #0b1c28; --line: #15384e;
-    --blue: #4a7d9e; --blue-hi: #a8c5d8;
-    --teal: #38a3a5; --teal-hi: #6fd3d5;
-    --green: #57cc99; --green-hi: #80ed99;
-    --amber: #f4bf5a; --coral: #ff8a8a;
-    --text: #e1e8eb; --text-2: #8fa3ad;
+    --bg: #14151e; --bg-2: #1c1d2a; --line: #2f3145;
+    --indigo: #8e90ab; --indigo-hi: #b4b6cc;
+    --peach: #e07a5f; --peach-hi: #ec9a84;
+    --teal: #81b29a; --teal-hi: #a7cab8;
+    --apricot: #f2cc8f;
+    --text: #f4f1de; --text-2: #9d9a8c;
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
@@ -32,10 +32,10 @@
   h1 { font-size: 96px; letter-spacing: -.03em; line-height: 1; }
   h2 { font-size: 54px; letter-spacing: -.02em; line-height: 1.1; margin-bottom: 18px; }
   .kicker { font-size: 18px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--teal-hi); margin-bottom: 14px; }
+    color: var(--peach-hi); margin-bottom: 14px; }
   .sub { font-size: 26px; color: var(--text-2); line-height: 1.4; max-width: 820px; }
-  .hl { color: var(--green-hi); }
-  code { font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--blue-hi); }
+  .hl { color: var(--teal-hi); }
+  code { font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--indigo-hi); }
 
   /* entrance animation: any .a inside the active slide, staggered by --d */
   .a { opacity: 0; }
@@ -47,36 +47,48 @@
 
   /* ---------- 1: title ---------- */
   .title-wrap { display: flex; align-items: center; gap: 64px; }
-  .logo { width: 260px; height: 260px; flex: none; }
+  /* The tile and stand pop in and stay put; the fly (wings + mic head) flies in
+     from above, outside the tile, and lands on the stand. Units inside the SVG
+     are viewBox units: 1 = 1/32 of the logo. */
+  .logo { width: 260px; height: 260px; flex: none; overflow: visible; }
+  .fly { transform-box: fill-box; transform-origin: 50% 60%; }
+  .active .fly { animation: flyIn 2s cubic-bezier(.45,0,.55,1) .5s both; }
+  @keyframes flyIn {
+    0%   { opacity: 0; transform: translate(-22px, -36px) rotate(-30deg); }
+    10%  { opacity: 1; }
+    40%  { transform: translate(18px, -16px) rotate(20deg); }
+    65%  { transform: translate(6px, -22px) rotate(-10deg); }
+    85%  { transform: translate(-1px, -4px) rotate(-4deg); }
+    93%  { transform: translate(0, .6px); }
+    100% { opacity: 1; transform: none; }
+  }
   .wing { transform-box: fill-box; transform-origin: bottom center; }
-  .active .wing-l { animation: flapL .18s ease-in-out 12 alternate; }
-  .active .wing-r { animation: flapR .18s ease-in-out 12 alternate; }
+  .active .wing-l { animation: flapL .1s ease-in-out .5s 20 alternate; }
+  .active .wing-r { animation: flapR .1s ease-in-out .5s 20 alternate; }
   @keyframes flapL { from { transform: rotate(0deg); } to { transform: rotate(-22deg); } }
   @keyframes flapR { from { transform: rotate(0deg); } to { transform: rotate(22deg); } }
-  .active .logo-body { animation: hover 2.2s ease-in-out 1; }
-  @keyframes hover { 50% { transform: translateY(-10px); } }
   .fly-letters span { display: inline-block; }
   .tagline { font-size: 30px; color: var(--text-2); margin-top: 18px; }
   .tagline b { color: var(--text); font-weight: 600; }
 
-  /* ---------- 1b: what it records ---------- */
+  /* ---------- 2b: what it records ---------- */
   .hear { display: grid; grid-template-columns: 1fr 120px 340px; align-items: center; margin-top: 52px; }
   .srcs { display: grid; gap: 46px; }
   .src { display: flex; align-items: center; gap: 22px; height: 104px; box-sizing: border-box;
     padding: 0 28px; border-radius: 28px; background: var(--bg-2); border: 2px solid var(--line); }
-  .src.you { border-color: var(--amber); }
-  .src.sys { border-color: var(--blue); }
+  .src.you { border-color: var(--apricot); }
+  .src.sys { border-color: var(--indigo); }
   .src .ic { font-size: 52px; }
   .src b { display: block; font-size: 26px; }
   .src span { font-size: 18px; color: var(--text-2); }
   .merge { width: 120px; height: 254px; overflow: visible; }
   .merge path { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 220; stroke-dashoffset: 220; }
-  .merge .m1 { stroke: var(--amber); }
-  .merge .m2 { stroke: var(--blue-hi); }
+  .merge .m1 { stroke: var(--apricot); }
+  .merge .m2 { stroke: var(--indigo-hi); }
   .active .merge path { animation: draw .9s 1.2s ease-out forwards; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
   .result { text-align: center; padding: 28px 24px; border-radius: 28px; background: var(--bg-2);
-    border: 2px solid var(--green-hi); }
+    border: 2px solid var(--teal-hi); }
   .result .bars { height: 90px; justify-content: center; margin-bottom: 16px; }
   .result b { display: block; font-size: 26px; }
   .result span { font-size: 18px; color: var(--text-2); }
@@ -86,17 +98,17 @@
   /* ---------- 2: local ---------- */
   .local { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 40px; }
   .mac { position: relative; width: 480px; height: 320px; margin: 0 auto; }
-  .screen { position: absolute; inset: 0 30px 40px; border: 3px solid var(--blue); border-radius: 16px;
+  .screen { position: absolute; inset: 0 30px 40px; border: 3px solid var(--indigo); border-radius: 16px;
     background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
   .base { position: absolute; left: 0; right: 0; bottom: 18px; height: 22px; border-radius: 0 0 22px 22px;
-    background: var(--line); border: 3px solid var(--blue); border-top: 0; }
+    background: var(--line); border: 3px solid var(--indigo); border-top: 0; }
   .bars { display: flex; gap: 6px; align-items: center; height: 120px; }
-  .bars i { width: 8px; height: 100%; border-radius: 4px; background: var(--green-hi);
+  .bars i { width: 8px; height: 100%; border-radius: 4px; background: var(--teal-hi);
     transform: scaleY(.15); }
   .active .bars i { animation: wave var(--t, .8s) ease-in-out var(--w, 0s) infinite alternate; }
   @keyframes wave { to { transform: scaleY(var(--h, 1)); } }
   .shield { position: absolute; right: -18px; top: -18px; width: 86px; height: 86px; border-radius: 50%;
-    background: var(--green); display: grid; place-items: center; font-size: 42px;
+    background: var(--teal); display: grid; place-items: center; font-size: 42px;
   }
   .active .shield { animation: pop .6s 1s both; }
   .cloud { position: absolute; left: -40px; top: -40px; font-size: 64px; opacity: 0; }
@@ -105,26 +117,26 @@
     40% { opacity: 1; transform: translate(40px, 30px); } 55% { transform: translate(30px, 20px) rotate(-8deg); }
     100% { opacity: .35; transform: translate(-10px,-10px) rotate(-12deg); filter: grayscale(1); } }
   .cloud::after { content: ""; position: absolute; left: -6px; right: -6px; top: 50%; height: 6px;
-    background: var(--coral); border-radius: 3px; transform: rotate(-30deg) scaleX(0); }
+    background: var(--peach); border-radius: 3px; transform: rotate(-30deg) scaleX(0); }
   .active .cloud::after { animation: strike .3s 2.2s forwards; }
   @keyframes strike { to { transform: rotate(-30deg) scaleX(1); } }
 
   /* ---------- 3: pipeline ---------- */
   .pipe { position: relative; display: flex; justify-content: space-between; margin-top: 64px; }
   .track { position: absolute; left: 70px; right: 70px; top: 66px; height: 4px; background: var(--line); border-radius: 2px; }
-  .track .fill { position: absolute; inset: 0; background: var(--green-hi);
+  .track .fill { position: absolute; inset: 0; background: var(--teal-hi);
     transform-origin: left; transform: scaleX(0); border-radius: 2px; }
   .active .track .fill { animation: grow 1.8s .4s cubic-bezier(.6,0,.2,1) forwards; }
   @keyframes grow { to { transform: scaleX(1); } }
-  .pulse { position: absolute; top: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--green-hi);
+  .pulse { position: absolute; top: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--teal-hi);
     opacity: 0; }
   .active .pulse { animation: travel 2.6s 2.4s linear infinite; }
   @keyframes travel { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: calc(100% - 20px); opacity: 0; } }
   .node { position: relative; width: 170px; text-align: center; }
   .node .ic { width: 136px; height: 136px; border-radius: 34px; display: grid; place-items: center; font-size: 60px;
     background: var(--bg-2); border: 2px solid var(--line); margin: 0 auto 18px; }
-  .node.m .ic { border-color: var(--teal); }
-  .node.u .ic { border-color: var(--amber); }
+  .node.m .ic { border-color: var(--peach); }
+  .node.u .ic { border-color: var(--apricot); }
   .node b { display: block; font-size: 24px; }
   .node span { font-size: 17px; color: var(--text-2); }
   .legend { display: flex; gap: 32px; justify-content: center; margin-top: 56px; font-size: 18px; color: var(--text-2); }
@@ -137,20 +149,20 @@
   /* Flat shapes standing in for windows behind the panel, so the blur reads as glass. */
   .desk .win { position: absolute; border-radius: 14px; }
   .mbar { position: absolute; left: 0; right: 0; top: 0; height: 30px; display: flex; align-items: center;
-    justify-content: flex-end; gap: 16px; padding: 0 16px; background: #10283a; font-size: 13px; color: var(--text); }
+    justify-content: flex-end; gap: 16px; padding: 0 16px; background: #252738; font-size: 13px; color: var(--text); }
   .mbar .dotty { width: 16px; height: 10px; border-radius: 3px; border: 1.5px solid var(--text-2); }
   .mb-icon { position: relative; display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px;
     border-radius: 6px; font-variant-numeric: tabular-nums; }
   .mb-icon svg { width: 16px; height: 18px; }
   .mb-state { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; white-space: nowrap; }
   .mb-icon .sizer { visibility: hidden; }
-  .mb-rec { color: var(--coral); }
-  .mb-rec svg path, .mb-rec svg rect { fill: var(--coral); stroke: var(--coral); }
+  .mb-rec { color: var(--peach); }
+  .mb-rec svg path, .mb-rec svg rect { fill: var(--peach); stroke: var(--peach); }
   .active .mb-icon { animation: tap .3s .2s; }
   @keyframes tap { 50% { background: rgba(255,255,255,.14); } }
 
   .fp { position: absolute; left: 120px; top: 44px; width: 360px; height: 408px; border-radius: 18px;
-    background: rgba(16, 40, 58, .62); border: 1px solid rgba(255,255,255,.12);
+    background: rgba(28, 29, 42, .62); border: 1px solid rgba(255,255,255,.12);
     backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
     transform-origin: 282px 0; opacity: 0; }
   .active .fp { animation: drop .45s .45s cubic-bezier(.2,.8,.2,1) both; }
@@ -165,16 +177,16 @@
   .fp-rec i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .fp-rec span { flex: 1; }
   .fp-rec em { font-style: normal; font-weight: 500; font-variant-numeric: tabular-nums; }
-  .rec-live { background: #b0303a; color: #fff; }
+  .rec-live { background: #a5452c; color: #fff; }
   .rec-live i { border-radius: 2px; background: #fff; }
-  .rec-busy { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: var(--teal-hi); }
-  .rec-busy i { background: var(--teal-hi); animation: blink 1s infinite; }
+  .rec-busy { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: var(--peach-hi); }
+  .rec-busy i { background: var(--peach-hi); animation: blink 1s infinite; }
   .rec-busy em { font-size: 12px; color: var(--text-2); }
   .rec-idle { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
-  .rec-idle i { background: var(--coral); }
+  .rec-idle i { background: var(--peach); }
   .fp-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: .08em;
     text-transform: uppercase; color: var(--text-2); margin-top: 2px; }
-  .fp-label b { position: relative; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--amber); font-size: 12px; }
+  .fp-label b { position: relative; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--apricot); font-size: 12px; }
   .fp-rows { display: grid; gap: 2px; margin: 0 -4px; }
   .fp-row { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px;
     height: 46px; padding: 0 8px; border-radius: 8px; }
@@ -184,9 +196,9 @@
   .fp-pill > i { position: absolute; right: 0; top: 0; display: inline-flex; align-items: center; gap: 5px; height: 20px;
     padding: 0 8px; border-radius: 99px; font: 500 11.5px/1 -apple-system, system-ui, sans-serif; font-style: normal; white-space: nowrap; }
   .fp-pill > i::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .p-busy { color: var(--teal-hi); background: rgba(111,211,213,.14); }
-  .p-warn { color: var(--amber); background: rgba(244,191,90,.15); }
-  .p-ok { color: var(--green-hi); background: rgba(128,237,153,.13); }
+  .p-busy { color: var(--peach-hi); background: rgba(236,154,132,.14); }
+  .p-warn { color: var(--apricot); background: rgba(242,204,143,.15); }
+  .p-ok { color: var(--teal-hi); background: rgba(167,202,184,.13); }
   .fp-foot { margin: auto -14px 0; padding: 10px 14px 0; border-top: 1px solid rgba(255,255,255,.1);
     display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-2); }
 
@@ -208,12 +220,12 @@
   .active .typed-name .ph { animation: fadeOut .01s var(--d) forwards; }
   @keyframes type { to { width: var(--w); } }
   .fp-btn { margin-left: auto; height: 28px; padding: 0 12px; border-radius: 8px; display: grid; place-items: center;
-    background: var(--teal); color: #07131b; font-size: 13px; font-weight: 600; }
+    background: var(--peach); color: #14151e; font-size: 13px; font-weight: 600; }
   .active .fp-btn { animation: press .25s 6.85s; }
   @keyframes press { 50% { transform: scale(.94); } }
 
   .fp-toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 14px; border-radius: 99px;
-    background: var(--text); color: #07131b; font-size: 12.5px; font-weight: 600; opacity: 0; white-space: nowrap; }
+    background: var(--text); color: #14151e; font-size: 12.5px; font-weight: 600; opacity: 0; white-space: nowrap; }
   .active .fp-toast { animation: on .3s 7.1s both, off .4s 8.8s forwards; }
 
   /* Timed swaps: .show-at fades in at --in, .hide-at fades out at --out. */
@@ -243,8 +255,8 @@
   /* ---------- 5: transcribe ---------- */
   .split { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: center; }
   .model-chip { display: inline-flex; align-items: center; gap: 12px; padding: 10px 20px; border-radius: 99px;
-    background: rgba(56,163,165,.15); border: 1px solid var(--teal); font-size: 22px; margin-top: 18px; }
-  .model-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--teal-hi); animation: blink 1s infinite; }
+    background: rgba(224,122,95,.15); border: 1px solid var(--peach); font-size: 22px; margin-top: 18px; }
+  .model-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--peach-hi); animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: .2; } }
   .panel { background: var(--bg-2); border: 1px solid var(--line); border-radius: 20px; padding: 32px; }
   .panel .bars { height: 90px; justify-content: center; margin-bottom: 28px; }
@@ -252,14 +264,14 @@
   .typed span { opacity: 0; }
   .active .typed span { animation: word .35s ease-out var(--d) forwards; }
   @keyframes word { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: none; } }
-  .caret { display: inline-block; width: 3px; height: 1em; background: var(--green-hi); vertical-align: -4px; animation: blink .8s infinite; }
+  .caret { display: inline-block; width: 3px; height: 1em; background: var(--teal-hi); vertical-align: -4px; animation: blink .8s infinite; }
 
   /* ---------- 6: diarize ---------- */
   .chat { display: flex; flex-direction: column; gap: 14px; }
   .line { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 18px; }
   .who { position: relative; height: 44px; }
   .who span { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 12px;
-    font-weight: 700; font-size: 18px; color: #07131b; background: var(--c); }
+    font-weight: 700; font-size: 18px; color: #14151e; background: var(--c); }
   .who .anon { font-family: ui-monospace, Menlo, monospace; font-size: 15px; }
   .who .name { opacity: 0; }
   .active .who .anon { animation: rise .5s var(--d) both, fadeOut .4s calc(var(--d) + 2.4s) forwards; }
@@ -280,17 +292,17 @@
   .box.bad { position: relative; }
   .active .box.bad { animation: rise .6s .3s both, shake .5s 1.3s, dim .4s 1.8s forwards; }
   @keyframes shake { 20%,60% { transform: translateX(-10px) rotate(-1deg); } 40%,80% { transform: translateX(10px) rotate(1deg); } }
-  @keyframes dim { to { opacity: .45; border-color: var(--coral); } }
-  .box.bad .x { position: absolute; inset: 0; display: grid; place-items: center; font-size: 200px; color: var(--coral);
+  @keyframes dim { to { opacity: .45; border-color: var(--peach); } }
+  .box.bad .x { position: absolute; inset: 0; display: grid; place-items: center; font-size: 200px; color: var(--peach);
     opacity: 0; font-weight: 200; }
   .active .box.bad .x { animation: pop .4s 1.8s forwards; }
-  .box.good { border-color: var(--green); }
+  .box.good { border-color: var(--teal); }
   .box .arm { display: inline-block; font-size: 48px; margin: 0 6px; vertical-align: middle; opacity: 0; color: inherit; }
   .active .arm.l { animation: flexL .9s 2.9s both; }
   .active .arm.r { animation: flexR .9s 2.9s both; }
   @keyframes flexL { 0% { opacity: 0; transform: scale(.3); } 50% { opacity: 1; transform: scale(1.15) rotate(-12deg); } 75% { transform: rotate(6deg); } 100% { opacity: 1; transform: none; } }
   @keyframes flexR { 0% { opacity: 0; transform: scaleX(-1) scale(.3); } 50% { opacity: 1; transform: scaleX(-1) scale(1.15) rotate(-12deg); } 75% { transform: scaleX(-1) rotate(6deg); } 100% { opacity: 1; transform: scaleX(-1); } }
-  .big-arrow { font-size: 60px; color: var(--green-hi); }
+  .big-arrow { font-size: 60px; color: var(--teal-hi); }
   .active .big-arrow { animation: rise .5s 2.2s both, nudge 1s 2.8s infinite; }
   @keyframes nudge { 50% { transform: translateX(12px); } }
 
@@ -301,21 +313,21 @@
   .flow { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
   .doc { background: var(--bg-2); border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px; }
   .doc-head { font: 15px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-2); margin-bottom: 14px; }
-  .doc-head b { color: var(--amber); font-weight: 600; }
+  .doc-head b { color: var(--apricot); font-weight: 600; }
   .doc.raw { opacity: .75; }
   .doc.raw p { font-size: 18px; color: var(--text-2); margin-bottom: 6px; }
   .doc.raw p b { color: var(--text); font-weight: 600; }
-  .flow-arrow { text-align: center; font-size: 34px; color: var(--green-hi); line-height: 1; }
-  .doc.note { border-color: var(--green); }
-  .doc.note .doc-head b { color: var(--green-hi); }
+  .flow-arrow { text-align: center; font-size: 34px; color: var(--teal-hi); line-height: 1; }
+  .doc.note { border-color: var(--teal); }
+  .doc.note .doc-head b { color: var(--teal-hi); }
   .doc.note h4 { font-size: 24px; margin-bottom: 12px; }
-  .doc.note .sec { font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--teal-hi); margin: 12px 0 6px; }
+  .doc.note .sec { font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--peach-hi); margin: 12px 0 6px; }
   .doc.note p { font-size: 19px; margin-bottom: 4px; }
 
   /* ---------- 9: install ---------- */
-  .cmd { margin-top: 30px; padding: 22px 26px; border-radius: 18px; background: var(--bg-2); border: 1px solid var(--green);
+  .cmd { margin-top: 30px; padding: 22px 26px; border-radius: 18px; background: var(--bg-2); border: 1px solid var(--teal);
     font: 16.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); white-space: pre; }
-  .cmd .pr { color: var(--green-hi); user-select: none; }
+  .cmd .pr { color: var(--teal-hi); user-select: none; }
   .cmd-label { font-size: 22px; color: var(--text-2); margin: 28px 0 12px; }
   .cmd-label + .cmd { margin-top: 0; }
   .cmd-note { margin-top: 14px; font-size: 19px; color: var(--text-2); }
@@ -325,38 +337,28 @@
   .req span { color: var(--text-2); }
 
   /* ---------- 10: the install itself ---------- */
-  .inst { display: grid; grid-template-columns: 1fr 320px; gap: 40px; margin-top: 26px; align-items: start; }
+  .inst { margin-top: 26px; }
   .term { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 22px 28px;
     font: 17px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .term .q { color: var(--text-2); margin-bottom: 14px; }
-  .term .q b { color: var(--text); font-weight: 600; }
   .srow { display: grid; grid-template-columns: 54px 1fr 26px; align-items: baseline; margin-top: 10px; }
   .srow .n { color: var(--text-2); }
-  .srow .ok { color: var(--green-hi); text-align: right; }
+  .srow .ok { color: var(--teal-hi); text-align: right; }
   .srow small { grid-column: 2; display: block; font-size: 13.5px; color: var(--text-2); opacity: .75; }
   .dl { grid-column: 2; height: 6px; margin-top: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-  .dl i { display: block; height: 100%; width: 0; background: var(--teal); }
+  .dl i { display: block; height: 100%; width: 0; background: var(--peach); }
   .active .dl i { animation: fill 2s 2.5s ease-in-out forwards; }
   @keyframes fill { to { width: 100%; } }
-  .term .done { margin-top: 16px; color: var(--green-hi); font-weight: 700; }
+  .term .done { margin-top: 16px; color: var(--teal-hi); font-weight: 700; }
   .term .done span { color: var(--text-2); font-weight: 400; }
-  .choices { display: grid; gap: 16px; }
-  .choices h3 { font-size: 19px; color: var(--text-2); font-weight: 600; }
-  .choice { padding: 18px 22px; border-radius: 18px; background: var(--bg-2); border: 2px solid var(--line); }
-  .choice.rec { border-color: var(--green); }
-  .choice b { display: block; font-size: 22px; margin-bottom: 4px; }
-  .choice b em { font-style: normal; font-size: 14px; font-weight: 700; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--green-hi); margin-left: 8px; }
-  .choice span { font-size: 17px; color: var(--text-2); line-height: 1.4; }
   .inst-note { margin-top: 22px; font-size: 19px; color: var(--text-2); }
 
   /* ---------- chrome ---------- */
-  #progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--green-hi);
+  #progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--teal-hi);
     transition: width .5s ease; }
   #dots { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
   #dots button { width: 10px; height: 10px; border-radius: 5px; border: 0; background: var(--line); cursor: pointer;
     transition: width .3s, background .3s; padding: 0; }
-  #dots button.on { width: 28px; background: var(--green-hi); }
+  #dots button.on { width: 28px; background: var(--teal-hi); }
   #hint { position: absolute; right: 28px; bottom: 16px; font-size: 14px; color: var(--text-2); opacity: .7; }
   #count { position: absolute; left: 28px; bottom: 16px; font-size: 14px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 </style>
@@ -368,14 +370,14 @@
   <section class="slide">
     <div class="title-wrap">
       <svg class="logo a pop" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="9" fill="#22577a"/>
-        <g class="logo-body">
-          <g class="wing wing-l"><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#80ed99" fill-opacity=".85"/></g>
-          <g class="wing wing-r"><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#80ed99" fill-opacity=".85"/></g>
-          <rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#fff"/>
-          <path d="M14.4 9.6h3.2M14.4 12.2h3.2" stroke="#22577a" stroke-width="1.1" stroke-linecap="round"/>
-          <path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+        <rect width="32" height="32" rx="9" fill="#e07a5f"/>
+        <g class="fly">
+          <g class="wing wing-l"><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#3d405b" fill-opacity=".85"/></g>
+          <g class="wing wing-r"><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#3d405b" fill-opacity=".85"/></g>
+          <rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#fffdf7"/>
+          <path d="M14.4 9.6h3.2M14.4 12.2h3.2" stroke="#e07a5f" stroke-width="1.1" stroke-linecap="round"/>
         </g>
+        <path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#fffdf7" stroke-width="1.7" stroke-linecap="round" fill="none"/>
       </svg>
       <div>
         <h1 class="fly-letters"><span class="a" style="--d:.3s">F</span><span class="a" style="--d:.42s">L</span><span class="a" style="--d:.54s">Y</span></h1>
@@ -383,25 +385,6 @@
         <p class="sub a" style="--d:1.1s; margin-top:36px">Record a meeting. Get a transcript that says <span class="hl">who said what</span>.<br>All securely and fully locally on your Mac.</p>
       </div>
     </div>
-  </section>
-
-  <!-- 1b: what it records -->
-  <section class="slide">
-    <div class="kicker a">What it records</div>
-    <h2 class="a" style="--d:.1s">Your voice and everyone else on the call</h2>
-    <div class="hear">
-      <div class="srcs">
-        <div class="src you a pop" style="--d:.4s"><div class="ic">🎙️</div><div><b>Your microphone</b><span>what you or anyone else in the same room says</span></div></div>
-        <div class="src sys a pop" style="--d:.8s"><div class="ic">🔊</div><div><b>Computer audio</b><span>what you hear: the other people on the call</span></div></div>
-      </div>
-      <svg class="merge" viewBox="0 0 120 254" aria-hidden="true">
-        <path class="m1" d="M0 52 C60 52 60 127 120 127"/>
-        <path class="m2" d="M0 202 C60 202 60 127 120 127"/>
-      </svg>
-      <div class="result a pop" style="--d:1.4s"><div class="bars" data-bars="18"></div><b>One recording</b><span>both sides, kept on your Mac</span></div>
-    </div>
-    <p class="sub hear-note a" style="--d:1.9s">No bot joins the call, and nobody else needs to install anything.</p>
-    <p class="hear-small a" style="--d:2.2s">Remember to tell people you are recording.</p>
   </section>
 
   <!-- 2 -->
@@ -421,6 +404,25 @@
     </div>
   </section>
 
+  <!-- 2b: what it records -->
+  <section class="slide">
+    <div class="kicker a">What it records</div>
+    <h2 class="a" style="--d:.1s">Your voice and everyone else on the call</h2>
+    <div class="hear">
+      <div class="srcs">
+        <div class="src you a pop" style="--d:.4s"><div class="ic">🎙️</div><div><b>Your microphone</b><span>what you or anyone else in the same room says</span></div></div>
+        <div class="src sys a pop" style="--d:.8s"><div class="ic">🔊</div><div><b>Computer audio</b><span>what you hear: the other people on the call</span></div></div>
+      </div>
+      <svg class="merge" viewBox="0 0 120 254" aria-hidden="true">
+        <path class="m1" d="M0 52 C60 52 60 127 120 127"/>
+        <path class="m2" d="M0 202 C60 202 60 127 120 127"/>
+      </svg>
+      <div class="result a pop" style="--d:1.4s"><div class="bars" data-bars="18"></div><b>One recording</b><span>both sides, kept on your Mac</span></div>
+    </div>
+    <p class="sub hear-note a" style="--d:1.9s">No bot joins the call, and nobody else needs to install anything.</p>
+    <p class="hear-small a" style="--d:2.2s">Remember to tell people you are recording.</p>
+  </section>
+
   <!-- 3 -->
   <section class="slide">
     <div class="kicker a">The workflow</div>
@@ -434,8 +436,8 @@
       <div class="node a pop" style="--d:2s"><div class="ic">🤝</div><b>Handover</b><span>to your agent</span></div>
     </div>
     <div class="legend a" style="--d:2.4s">
-      <span><i style="background:var(--amber)"></i>you</span>
-      <span><i style="background:var(--teal)"></i>local AI model</span>
+      <span><i style="background:var(--apricot)"></i>you</span>
+      <span><i style="background:var(--peach)"></i>local AI model</span>
       <span><i style="background:var(--line)"></i>app</span>
     </div>
   </section>
@@ -449,9 +451,9 @@
         <p class="sub a" style="--d:.25s">Click the icon to record, follow progress and save each transcript. You name the speakers and pick the project right there.</p>
       </div>
       <div class="desk a" style="--d:.1s">
-        <div class="win" style="left:40px; top:120px; width:230px; height:300px; background:var(--blue)"></div>
-        <div class="win" style="left:300px; top:70px; width:220px; height:150px; background:var(--green)"></div>
-        <div class="win" style="left:330px; top:260px; width:190px; height:200px; background:var(--amber)"></div>
+        <div class="win" style="left:40px; top:120px; width:230px; height:300px; background:var(--indigo)"></div>
+        <div class="win" style="left:300px; top:70px; width:220px; height:150px; background:var(--teal)"></div>
+        <div class="win" style="left:330px; top:260px; width:190px; height:200px; background:var(--apricot)"></div>
         <div class="mbar">
           <span class="mb-icon">
             <span class="sizer"><svg viewBox="2 2 28 25.5" aria-hidden="true"><g fill="currentColor"><ellipse cx="9.3" cy="10.5" rx="3.2" ry="6.6" transform="rotate(-56 9.3 10.5)" opacity=".5"/><ellipse cx="22.7" cy="10.5" rx="3.2" ry="6.6" transform="rotate(56 22.7 10.5)" opacity=".5"/><rect x="12.4" y="5" width="7.2" height="12.6" rx="3.6"/></g><path d="M9.4 15a6.6 6.6 0 0 0 13.2 0M16 21.6V25M12.6 25h6.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg><span>12:04</span></span>
@@ -466,7 +468,7 @@
 
         <div class="fp">
           <div class="fp-view t0" style="--out:4.7s">
-            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#38a3a5"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#c7f9cc" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#c7f9cc" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#07131b"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#07131b" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
+            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#e07a5f"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#3d405b" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#3d405b" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#fffdf7"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#fffdf7" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
             <div class="fp-rec">
               <div class="rec-live t0" style="--out:1.9s"><i></i><span>Stop recording</span><em>12:04</em></div>
               <div class="rec-busy t" style="--in:1.9s; --out:3.3s"><i></i><span>Transcribing…</span><em>12:04 captured</em></div>
@@ -489,10 +491,10 @@
             <h4>Save recording</h4>
             <div class="fp-field">Title<div class="fp-input">Release sync</div></div>
             <div class="fp-field">Who is who
-              <div class="fp-who" style="--c:var(--teal-hi)"><span class="av">1</span><div>
+              <div class="fp-who" style="--c:var(--peach-hi)"><span class="av">1</span><div>
                 <div class="fp-input typed-name"><span class="ph">Speaker 1</span><span class="nm" style="--d:5.2s; --w:3.2ch">Aino</span></div>
                 <q>“Is the release still on for Friday?”</q></div></div>
-              <div class="fp-who" style="--c:var(--amber)"><span class="av">2</span><div>
+              <div class="fp-who" style="--c:var(--apricot)"><span class="av">2</span><div>
                 <div class="fp-input typed-name"><span class="ph">Speaker 2</span><span class="nm" style="--d:5.8s; --w:4.6ch">Mikko</span></div>
                 <q>“Yes, if the tests pass.”</q></div></div>
             </div>
@@ -501,7 +503,7 @@
           </div>
 
           <div class="fp-view t" style="--in:7s">
-            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#38a3a5"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#c7f9cc" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#c7f9cc" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#07131b"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#07131b" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
+            <div class="fp-head"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#e07a5f"/><ellipse cx="9" cy="10" rx="3.4" ry="7" transform="rotate(-56 9 10)" fill="#3d405b" fill-opacity=".85"/><ellipse cx="23" cy="10" rx="3.4" ry="7" transform="rotate(56 23 10)" fill="#3d405b" fill-opacity=".85"/><rect x="12.6" y="5.5" width="6.8" height="12" rx="3.4" fill="#fffdf7"/><path d="M9.6 15a6.4 6.4 0 0 0 12.8 0M16 21.4v3.4M12.8 24.8h6.4" stroke="#fffdf7" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>FLY <small>Faithful Logger of Yapping</small></div>
             <div class="fp-rec"><div class="rec-idle"><i></i><span>Start recording</span></div></div>
             <div class="fp-label">Recent</div>
             <div class="fp-rows">
@@ -517,7 +519,7 @@
           <div class="fp-toast">Saved to Acme</div>
         </div>
 
-        <svg class="cursor" viewBox="0 0 22 22" aria-hidden="true"><path d="M4 2l14 9.5-6.2 1.2 3.6 6.8-2.6 1.4-3.6-6.9L4 18.5z" fill="#fff" stroke="#07131b" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        <svg class="cursor" viewBox="0 0 22 22" aria-hidden="true"><path d="M4 2l14 9.5-6.2 1.2 3.6 6.8-2.6 1.4-3.6-6.9L4 18.5z" fill="#fff" stroke="#14151e" stroke-width="1.3" stroke-linejoin="round"/></svg>
       </div>
     </div>
   </section>
@@ -548,10 +550,10 @@
         <div class="model-chip a" style="--d:.4s"><i></i>pyannote <code>community-1</code></div>
       </div>
       <div class="chat">
-        <div class="line" style="--c:var(--teal-hi); --d:.5s"><div class="who"><span class="anon">SPEAKER_00</span><span class="name">Aino</span></div><div class="bubble">Is the release still on for Friday?</div></div>
-        <div class="line" style="--c:var(--amber); --d:.9s"><div class="who"><span class="anon">SPEAKER_01</span><span class="name">Mikko</span></div><div class="bubble">Yes, if the tests pass.</div></div>
-        <div class="line" style="--c:var(--teal-hi); --d:1.3s"><div class="who"><span class="anon">SPEAKER_00</span><span class="name">Aino</span></div><div class="bubble">Good. Who writes the notes?</div></div>
-        <div class="line" style="--c:var(--green-hi); --d:1.7s"><div class="who"><span class="anon">SPEAKER_02</span><span class="name">Sara</span></div><div class="bubble">I can take those.</div></div>
+        <div class="line" style="--c:var(--peach-hi); --d:.5s"><div class="who"><span class="anon">SPEAKER_00</span><span class="name">Aino</span></div><div class="bubble">Is the release still on for Friday?</div></div>
+        <div class="line" style="--c:var(--apricot); --d:.9s"><div class="who"><span class="anon">SPEAKER_01</span><span class="name">Mikko</span></div><div class="bubble">Yes, if the tests pass.</div></div>
+        <div class="line" style="--c:var(--peach-hi); --d:1.3s"><div class="who"><span class="anon">SPEAKER_00</span><span class="name">Aino</span></div><div class="bubble">Good. Who writes the notes?</div></div>
+        <div class="line" style="--c:var(--teal-hi); --d:1.7s"><div class="who"><span class="anon">SPEAKER_02</span><span class="name">Sara</span></div><div class="bubble">I can take those.</div></div>
       </div>
     </div>
   </section>
@@ -624,18 +626,12 @@
     <h2 class="a" style="--d:.1s">What the install looks like</h2>
     <div class="inst">
       <div class="term a" style="--d:.3s">
-        <div class="q">When should FLY download its speech models? <b>1</b> now · 2 later</div>
         <div class="srow a" style="--d:.9s"><span class="n">[1/5]</span><span>The tools FLY runs on<small>uv, ownscribe (WhisperX + pyannote)</small></span><span class="ok a pop" style="--d:1.3s">✓</span></div>
         <div class="srow a" style="--d:1.4s"><span class="n">[2/5]</span><span>The FLY app<small>fly-transcriber, with its own ffmpeg</small></span><span class="ok a pop" style="--d:1.8s">✓</span></div>
         <div class="srow a" style="--d:1.9s"><span class="n">[3/5]</span><span>Speaker model, 30 MB<small>pyannote community-1, checksum-verified</small></span><span class="ok a pop" style="--d:2.3s">✓</span></div>
         <div class="srow a" style="--d:2.4s"><span class="n">[4/5]</span><span>Speech models, about 3 GB<small>Whisper large-v3 + word alignment</small></span><span class="ok a pop" style="--d:4.6s">✓</span><div class="dl"><i></i></div></div>
         <div class="srow a" style="--d:4.8s"><span class="n">[5/5]</span><span>Applications and login item<small>FLY.app for Spotlight, starts with your Mac</small></span><span class="ok a pop" style="--d:5.2s">✓</span></div>
         <div class="done a" style="--d:5.6s">FLY is installed. <span>Its window opens by itself.</span></div>
-      </div>
-      <div class="choices">
-        <h3 class="a" style="--d:.5s">The one question it asks</h3>
-        <div class="choice rec a" style="--d:.7s"><b>1 · Now<em>Recommended</em></b><span>Ready to record as soon as the install finishes.</span></div>
-        <div class="choice a" style="--d:.9s"><b>2 · Later</b><span>The models download during your first recording, so that transcript takes longer and needs internet.</span></div>
       </div>
     </div>
     <p class="inst-note a" style="--d:6s">About 5 to 20 minutes, mostly the download. If anything stops it, it says so; running the command again picks up where it left off.</p>

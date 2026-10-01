@@ -6,92 +6,102 @@
  * 2. Semantic -- what components actually reference. Light and dark themes
  *    differ only here.
  *
- * Every text/background pair below meets WCAG AA (4.5:1). The raw palette's
- * lighter members (teal, emerald, light green) do not on white, which is why
- * text uses the darker steps of each scale.
+ * Roles: twilight indigo is the ink and the primary, eggshell the ground,
+ * burnt peach the signature accent (logo wings) and, a step deeper, the
+ * record/danger colour; muted teal means done, apricot cream means attention.
+ * Dark mode inverts the pair: deep indigo ground, eggshell primary.
+ *
+ * Every text/background pair below meets WCAG AA (4.5:1). The raw peach, teal
+ * and apricot do not on eggshell, which is why text uses the darker steps.
  */
 :root {
   /* -- palette ------------------------------------------------------------ */
-  --baltic-blue-50: #edf3f7;
-  --baltic-blue-100: #d3e2ec;
-  --baltic-blue-200: #a8c5d8;
-  --baltic-blue-400: #4a7d9e;
-  --baltic-blue-500: #22577a;   /* baltic-blue */
-  --baltic-blue-600: #1b4763;
-  --baltic-blue-700: #15384e;
-  --baltic-blue-800: #10283a;
-  --baltic-blue-900: #0b1c28;
-  --baltic-blue-950: #07131b;
+  --twilight-indigo-50: #ecedf3;
+  --twilight-indigo-100: #dcdde7;
+  --twilight-indigo-200: #b4b6cc;
+  --twilight-indigo-500: #3d405b;  /* twilight-indigo */
+  --twilight-indigo-600: #33364d;
+  --twilight-indigo-700: #2f3145;
+  --twilight-indigo-800: #252738;
+  --twilight-indigo-900: #1c1d2a;
+  --twilight-indigo-950: #14151e;
 
-  --tropical-teal-50: #e8f6f6;
-  --tropical-teal-100: #c9eaea;
-  --tropical-teal-300: #6fd3d5;
-  --tropical-teal-500: #38a3a5; /* tropical-teal */
-  --tropical-teal-600: #287f81;
-  --tropical-teal-700: #1d6668;
-  --tropical-teal-900: #10363a;
+  --eggshell-0: #fffdf7;
+  --eggshell-25: #faf8ee;
+  --eggshell-50: #f4f1de;          /* eggshell */
+  --eggshell-100: #e7e3cb;
+  --eggshell-200: #d6d1b5;
+  --eggshell-300: #c8c4b0;
+  --eggshell-500: #9d9a8c;
 
-  --emerald-300: #80ed99;       /* light-green */
-  --emerald-100: #c7f9cc;       /* tea-green */
-  --emerald-50: #e6fbe9;
-  --emerald-500: #57cc99;       /* emerald */
-  --emerald-600: #268459;
-  --emerald-700: #1b6b45;
-  --emerald-900: #12301f;
+  --burnt-peach-50: #fbe9e3;
+  --burnt-peach-300: #ec9a84;
+  --burnt-peach-500: #e07a5f;      /* burnt-peach */
+  --burnt-peach-700: #a5452c;
+  --burnt-peach-900: #3b1f19;
 
-  /* Status colours the palette lacks, tuned to sit beside it. */
-  --amber-50: #fcefd9;  --amber-300: #f4bf5a;  --amber-700: #8f520a;  --amber-900: #33260b;
-  --coral-50: #fbe8e9;  --coral-300: #ff8a8a;  --coral-600: #b0303a;  --coral-900: #3a1719;
+  --muted-teal-50: #e8f2ec;
+  --muted-teal-500: #81b29a;       /* muted-teal */
+  --muted-teal-700: #3e6e57;
+  --muted-teal-900: #1b2e25;
 
-  /* Neutrals carry a trace of baltic blue so greys don't read as dead. */
-  --slate-0: #ffffff;
-  --slate-25: #f7fafa;
-  --slate-50: #f1f5f6;
-  --slate-100: #e1e8eb;
-  --slate-200: #cbd6db;
-  --slate-500: #647682;
-  --slate-600: #4a5d69;
-  --slate-900: #10222e;
+  --apricot-cream-50: #fcf1dc;
+  --apricot-cream-500: #f2cc8f;    /* apricot-cream */
+  --apricot-cream-800: #80561a;
+  --apricot-cream-900: #372b16;
+
+  /* Text greys carry a trace of twilight indigo so they don't read as dead. */
+  --ink-400: #62647a;
+  --ink-600: #4f526a;
+  --ink-900: #262839;
+
+  /* Speaker colours the palette lacks, tuned to sit beside it. */
+  --plum-700: #8a3f6e;   --plum-300: #d99bc4;
+  --sky-700: #3b6787;    --sky-300: #8fb8d6;
 
   /* -- semantic: light ---------------------------------------------------- */
-  --brand: var(--baltic-blue-500);
-  --brand-hover: var(--baltic-blue-600);
-  --brand-ink: var(--slate-0);
-  --brand-soft: var(--baltic-blue-50);
-  --accent: var(--tropical-teal-500);
-  --logo-wing: var(--emerald-300);
+  --brand: var(--twilight-indigo-500);
+  --brand-hover: var(--twilight-indigo-600);
+  --brand-ink: var(--eggshell-0);
+  --brand-soft: var(--twilight-indigo-50);
+  --accent: var(--burnt-peach-500);
+  /* The logo is the same in both themes, so these are set once, here. */
+  --logo-tile: var(--burnt-peach-500);
+  --logo-wing: var(--twilight-indigo-500);
+  --logo-ink: var(--eggshell-0);
 
-  --bg: var(--slate-50);
-  --surface: var(--slate-0);
-  --surface-2: var(--slate-25);
-  --line: var(--slate-100);
-  --line-strong: var(--slate-200);
-  --text: var(--slate-900);
-  --text-2: var(--slate-600);
-  --text-3: var(--slate-500);
+  --bg: var(--eggshell-50);
+  --surface: var(--eggshell-0);
+  --surface-2: var(--eggshell-25);
+  --line: var(--eggshell-100);
+  --line-strong: var(--eggshell-200);
+  --text: var(--ink-900);
+  --text-2: var(--ink-600);
+  --text-3: var(--ink-400);
 
-  --ok: var(--emerald-700);          --ok-soft: var(--emerald-50);
-  --busy: var(--tropical-teal-700);  --busy-soft: var(--tropical-teal-50);
-  --warn: var(--amber-700);          --warn-soft: var(--amber-50);
-  --danger: var(--coral-600);        --danger-soft: var(--coral-50);
+  --ok: var(--muted-teal-700);           --ok-soft: var(--muted-teal-50);
+  --busy: var(--twilight-indigo-500);    --busy-soft: var(--twilight-indigo-50);
+  --warn: var(--apricot-cream-800);      --warn-soft: var(--apricot-cream-50);
+  --danger: var(--burnt-peach-700);      --danger-soft: var(--burnt-peach-50);
 
-  /* Speaker colours: the palette first, then warm hues for contrast. */
-  --s0: var(--baltic-blue-500);
-  --s1: var(--tropical-teal-600);
-  --s2: var(--emerald-600);
-  --s3: #a65e18;
-  --s4: #b0456a;
-  --s5: #6456b8;
+  /* Speaker colours: the palette first, then two hues for contrast. */
+  --s0: var(--twilight-indigo-500);
+  --s1: var(--muted-teal-700);
+  --s2: var(--burnt-peach-700);
+  --s3: var(--apricot-cream-800);
+  --s4: var(--plum-700);
+  --s5: var(--sky-700);
 
-  --overlay: rgb(7 19 27 / 0.45);
-  --knob: var(--slate-0);
-  --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+  --overlay: rgb(20 21 30 / 0.45);
+  --knob: var(--eggshell-0);
+  /* Brand, not peach: a peach ring would read as an error. */
+  --focus: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent);
 
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
-  --shadow-sm: 0 1px 2px rgb(11 28 40 / 0.06);
-  --shadow-lg: 0 24px 48px -12px rgb(11 28 40 / 0.28), 0 0 0 1px rgb(11 28 40 / 0.06);
+  --shadow-sm: 0 1px 2px rgb(38 40 57 / 0.06);
+  --shadow-lg: 0 24px 48px -12px rgb(38 40 57 / 0.28), 0 0 0 1px rgb(38 40 57 / 0.06);
 
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -101,38 +111,38 @@
 /* -- semantic: dark -------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Baltic blue is too dark to be a primary on a dark ground; the brand
-       shifts to tropical teal, which keeps the family and reads clearly. */
-    --brand: var(--tropical-teal-500);
-    --brand-hover: var(--tropical-teal-300);
-    --brand-ink: var(--baltic-blue-950);
-    --brand-soft: var(--tropical-teal-900);
-    --accent: var(--tropical-teal-300);
-    --logo-wing: var(--emerald-100);
+    /* Twilight indigo is too dark to be a primary on a dark ground; the pair
+       inverts, so the primary is eggshell with indigo ink. */
+    --brand: var(--eggshell-50);
+    --brand-hover: var(--eggshell-0);
+    --brand-ink: var(--twilight-indigo-950);
+    --brand-soft: var(--twilight-indigo-700);
+    --accent: var(--burnt-peach-500);
 
-    --bg: var(--baltic-blue-950);
-    --surface: var(--baltic-blue-900);
-    --surface-2: var(--baltic-blue-800);
-    --line: #1c3442;
-    --line-strong: #294656;
-    --text: #e6f0f2;
-    --text-2: #a3b8c0;
-    --text-3: #76909a;
+    --bg: var(--twilight-indigo-950);
+    --surface: var(--twilight-indigo-900);
+    --surface-2: var(--twilight-indigo-800);
+    --line: var(--twilight-indigo-700);
+    --line-strong: var(--twilight-indigo-500);
+    --text: var(--eggshell-50);
+    --text-2: var(--eggshell-300);
+    --text-3: var(--eggshell-500);
 
-    --ok: var(--emerald-300);          --ok-soft: var(--emerald-900);
-    --busy: var(--tropical-teal-300);  --busy-soft: var(--tropical-teal-900);
-    --warn: var(--amber-300);          --warn-soft: var(--amber-900);
-    --danger: var(--coral-300);        --danger-soft: var(--coral-900);
+    --ok: var(--muted-teal-500);           --ok-soft: var(--muted-teal-900);
+    --busy: var(--twilight-indigo-200);    --busy-soft: var(--twilight-indigo-700);
+    --warn: var(--apricot-cream-500);      --warn-soft: var(--apricot-cream-900);
+    --danger: var(--burnt-peach-300);      --danger-soft: var(--burnt-peach-900);
 
-    --s0: #7fb3d5;
-    --s1: var(--tropical-teal-300);
-    --s2: var(--emerald-300);
-    --s3: #f4b26a;
-    --s4: #f28bb0;
-    --s5: #a99cf5;
+    --s0: var(--twilight-indigo-200);
+    --s1: var(--muted-teal-500);
+    --s2: var(--burnt-peach-300);
+    --s3: var(--apricot-cream-500);
+    --s4: var(--plum-300);
+    --s5: var(--sky-300);
 
     --overlay: rgb(0 0 0 / 0.6);
-    --knob: #e6f0f2;
+    --knob: var(--eggshell-50);
+    --focus: 0 0 0 3px color-mix(in srgb, var(--brand) 35%, transparent);
     --shadow-lg: 0 24px 48px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
   }
 }
@@ -430,7 +440,7 @@ select.input {
   transition: transform 0.18s;
 }
 .switch:checked { background: var(--brand); }
-.switch:checked::after { transform: translateX(16px); }
+.switch:checked::after { transform: translateX(16px); background: var(--brand-ink); }
 .switch:focus-visible { outline: none; box-shadow: var(--focus); }
 
 .speaker-map { display: grid; gap: 10px; }

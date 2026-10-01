@@ -7,17 +7,17 @@
  * shifts with the wallpaper.
  */
 :root {
-  --glass-fill: rgb(255 255 255 / 0.55);
-  --glass-hover: rgb(16 34 46 / 0.06);
-  --glass-press: rgb(16 34 46 / 0.1);
-  --glass-line: rgb(16 34 46 / 0.12);
+  --glass-fill: rgb(255 253 247 / 0.55);
+  --glass-hover: rgb(38 40 57 / 0.06);
+  --glass-press: rgb(38 40 57 / 0.1);
+  --glass-line: rgb(38 40 57 / 0.12);
 
   --surface: var(--glass-fill);
   --surface-2: var(--glass-hover);
   --line: var(--glass-line);
-  --line-strong: rgb(16 34 46 / 0.18);
-  --text-2: #3d505c;
-  --text-3: var(--slate-600);
+  --line-strong: rgb(38 40 57 / 0.18);
+  --text-2: var(--twilight-indigo-500);
+  --text-3: var(--ink-600);
   --shadow-sm: none;
 }
 
@@ -28,8 +28,8 @@
     --glass-press: rgb(255 255 255 / 0.12);
     --glass-line: rgb(255 255 255 / 0.12);
     --line-strong: rgb(255 255 255 / 0.18);
-    --text-2: #bccbd1;
-    --text-3: #a3b8c0;
+    --text-2: var(--eggshell-200);
+    --text-3: var(--eggshell-300);
   }
 }
 
@@ -84,10 +84,10 @@ button.rec-live:hover { background: color-mix(in srgb, var(--danger) 88%, #000);
 .rec-busy .rec-dot { background: var(--busy); animation: pulse 1.4s ease-in-out infinite; }
 .rec-busy .rec-aside { font-size: 12px; }
 
-/* The dashboard's dark coral is too light to carry white text. */
+/* The dashboard's dark-mode peach is too light to carry white text. */
 @media (prefers-color-scheme: dark) {
-  .rec-live { background: var(--coral-600); }
-  button.rec-live:hover { background: color-mix(in srgb, var(--coral-600) 88%, #fff); }
+  .rec-live { background: var(--burnt-peach-700); }
+  button.rec-live:hover { background: color-mix(in srgb, var(--burnt-peach-700) 88%, #fff); }
 }
 
 /* -- list ------------------------------------------------------------------ */

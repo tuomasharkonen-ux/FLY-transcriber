@@ -72,7 +72,7 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    html { background: #c9d5dc !important; overflow: hidden; }
+    html { background: #dcd8c3 !important; overflow: hidden; }
     .demo-shape { position: fixed; z-index: 0; }
     .demo-bar { position: fixed; z-index: 3; left: 0; right: 0; top: 0; height: 26px; display: flex; align-items: center;
       justify-content: flex-end; gap: 18px; padding: 0 14px; font: 500 13px -apple-system, system-ui; color: #1b2228;
@@ -91,10 +91,10 @@
 
   // Flat wallpaper: a few palette shapes, so the frosted panel reads as glass.
   for (const [css, color] of [
-    ["left:-60px; top:180px; width:420px; height:420px; border-radius:50%", "#22577a"],
-    ["left:250px; top:-90px; width:300px; height:300px; border-radius:50%", "#57cc99"],
-    ["left:470px; top:300px; width:360px; height:360px; border-radius:50%", "#38a3a5"],
-    ["left:590px; top:40px; width:160px; height:160px; border-radius:40px", "#f4bf5a"],
+    ["left:-60px; top:180px; width:420px; height:420px; border-radius:50%", "#3d405b"],
+    ["left:250px; top:-90px; width:300px; height:300px; border-radius:50%", "#81b29a"],
+    ["left:470px; top:300px; width:360px; height:360px; border-radius:50%", "#e07a5f"],
+    ["left:590px; top:40px; width:160px; height:160px; border-radius:40px", "#f2cc8f"],
   ]) {
     const d = document.createElement("div");
     d.className = "demo-shape";
