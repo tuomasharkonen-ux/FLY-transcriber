@@ -1,6 +1,6 @@
 [project]
 name = "fly-transcriber"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local, private meeting recorder for macOS: speaker-labelled transcripts saved into your projects for your AI agent."
 readme = "README.md"
 authors = [
