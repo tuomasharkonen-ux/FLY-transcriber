@@ -68,6 +68,8 @@ done
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 # A numbered step, so people new to the terminal can see how far along it is.
 step() { printf '\n\033[1m[%s/5] %s\033[0m\n' "$1" "$2"; }
+# The technical detail under a step, dimmed so newcomers can skip over it.
+detail() { printf '\033[2m      %s\033[0m\n' "$@"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 warn() { printf '\033[33mWarning:\033[0m %s\n' "$*" >&2; }
 
@@ -203,6 +205,11 @@ keep using your Mac meanwhile, but leave this window open until it says
 "FLY is installed".
 
 EOF
+printf '\033[2m%s\033[0m\n\n' \
+  "For the technically minded: installs uv, ownscribe (WhisperX + pyannote) and" \
+  "FLY as uv tools under ~/.local, models under ~/.local/share/fly-transcriber" \
+  "and ~/.cache/huggingface, FLY.app and a LaunchAgent. No admin password," \
+  "Homebrew or Xcode tools needed. Each step below names exactly what it adds."
 
 if speech_model_cached; then
   warmup=1
@@ -213,6 +220,13 @@ fi
 # -- dependencies ------------------------------------------------------------
 
 step 1 "Installing the tools FLY runs on (uv and ownscribe)"
+if command -v uv >/dev/null 2>&1; then
+  detail "uv: already installed ($(command -v uv))"
+else
+  detail "uv: Astral's Python package manager, into ~/.local/bin"
+fi
+detail "$OWNSCRIBE: recording + transcription CLI (WhisperX, pyannote), as a" \
+  "uv tool on Python $PYTHON (uv downloads Python if needed)"
 if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet
   export PATH="$BIN_DIR:$PATH"
@@ -235,12 +249,16 @@ else
   warn "No release found; installing the latest development version."
   archive="$REPO/archive/refs/heads/main.tar.gz"
 fi
+detail "fly-transcriber from $archive" \
+  "as a uv tool (PyObjC menubar app; bundles ffmpeg via imageio-ffmpeg)"
 uv tool install -q --python "$PYTHON" --force --reinstall-package fly-transcriber \
   "fly-transcriber @ $archive"
 
 # -- models ------------------------------------------------------------------
 
 step 3 "Downloading the model that tells speakers apart (30 MB)"
+detail "pyannote/speaker-diarization-community-1 (CC-BY-4.0), SHA-256 checked," \
+  "into ~/.local/share/fly-transcriber/models"
 speaker_model=1
 if model_ok "$MODEL_DIR"; then
   say "Already downloaded"
@@ -262,6 +280,8 @@ fi
 
 if [ "$warmup" -eq 1 ]; then
   step 4 "Downloading the speech models (about 3 GB; this is the long part)"
+  detail "Whisper large-v3 (faster-whisper) and a wav2vec2 word-alignment model" \
+    "from Hugging Face into ~/.cache/huggingface (fly-transcriber warmup)"
   if ! "$BIN_DIR/fly-transcriber" warmup; then
     warmup=0
     warn "The speech models did not download. FLY retries during your first recording, or run the install command again."
@@ -273,6 +293,10 @@ fi
 # -- FLY.app ------------------------------------------------------------------
 
 step 5 "Adding FLY to your Applications and login items"
+detail "FLY.app, a launcher for Spotlight, into /Applications (else ~/Applications)"
+if [ "$login_item" -eq 1 ]; then
+  detail "LaunchAgent ~/${PLIST#"$HOME"/}"
+fi
 "$BIN_DIR/fly-transcriber" install-launcher \
   || warn "Could not add FLY to Applications. The menubar app still works; start it with: fly-transcriber"
 
