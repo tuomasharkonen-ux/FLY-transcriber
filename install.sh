@@ -78,6 +78,62 @@ detail() { printf '\033[2m      %s\033[0m\n' "$@"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 warn() { printf '\033[33mWarning:\033[0m %s\n' "$*" >&2; }
 
+# Runs a command (uv, which is quiet about nothing it does not print) and shows
+# on one line what it is doing right now, with a bar for the downloads. uv
+# prints "Downloading torch (70.2MiB)", "Downloaded torch", "Building ..." and
+# "Installed N packages" when its output is not a terminal, and this reads
+# them. The full output goes to a log, shown only if the command fails. Without
+# a terminal there is nothing to draw on, so it just runs.
+run_with_progress() {
+  rp_log="$(mktemp)"
+  if [ -t 1 ]; then
+    cols="$(tput cols 2>/dev/null || echo 80)"
+    # The command's stdin is closed: the script itself arrives on stdin.
+    { rc=0; "$@" </dev/null 2>&1 || rc=$?; echo "$rc" >"$rp_log.rc"; } \
+      | tee "$rp_log" | awk -v cols="$cols" '
+        function mib(s,  n, u) {
+          n = s + 0; u = s; sub(/^[0-9.]+/, "", u); sub(/\).*/, "", u)
+          if (u == "GiB") n *= 1024; else if (u == "KiB") n /= 1024; else if (u == "B") n /= 1048576
+          return n
+        }
+        function draw(  b, i, filled, frac, room, line) {
+          # A build is silent for a while: keep saying so until it is done.
+          line = nb > 0 ? "Building " bname " (can take a minute or two)" : label
+          b = ""; room = cols - 8
+          if (tot > 0) {
+            frac = done / tot; if (frac > 1) frac = 1
+            filled = int(frac * 24 + 0.5)
+            for (i = 0; i < 24; i++) b = b (i < filled ? "█" : "░")
+            b = b sprintf(" %3d%%  ", frac * 100); room -= 31
+          }
+          line = substr(line, 1, room > 10 ? room : 10)
+          printf "\r\033[K      %s%s", b, line; fflush()
+        }
+        BEGIN { label = "Working out what to install"; draw() }
+        /^Resolved / { label = "Found " $2 " packages to install"; draw() }
+        /^Downloading / && $NF ~ /^\(.*iB\)$/ { size[$2] = mib(substr($NF, 2)); tot += size[$2]; label = "Downloading " $2; draw() }
+        /^ *Downloaded / { done += size[$2]; label = "Downloaded " $2; draw() }
+        /^ *Building / { nb++; bname = $2; draw() }
+        /^ *Built / { nb--; label = "Built " $2; draw() }
+        /^Prepared / { done = tot; label = "Downloaded and built " $2 " packages"; draw() }
+        /^Installed [0-9]+ packages/ { final = "Installed " $2 " packages"; label = final; draw() }
+        /^ \+ / { label = "Installing " $2; draw() }
+        END { printf "\r\033[K"; if (final != "") printf "\033[2m      %s\033[0m\n", final; fflush() }
+      '
+    rp_rc="$(cat "$rp_log.rc" 2>/dev/null || echo 1)"
+    rm -f "$rp_log.rc"
+  else
+    rp_rc=0
+    "$@" </dev/null >"$rp_log" 2>&1 || rp_rc=$?
+  fi
+  if [ "$rp_rc" -ne 0 ]; then
+    printf '\n' >&2
+    tail -n 40 "$rp_log" >&2
+  fi
+  rm -f "$rp_log"
+  return "$rp_rc"
+}
+
 # Called on exit while installing: a non-technical user would otherwise be left
 # at a prompt after some tool's output, with no idea whether it worked.
 interrupted() {
@@ -244,7 +300,7 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet
   export PATH="$BIN_DIR:$PATH"
 fi
-uv tool install -q --python "$PYTHON" --upgrade "$OWNSCRIBE" --with "$MLX_WHISPER"
+run_with_progress uv tool install --python "$PYTHON" --upgrade "$OWNSCRIBE" --with "$MLX_WHISPER"
 
 # The newest v* tag is the latest release. Tags only, so the speaker model's
 # own release (speaker-model-v1) is never mistaken for one. Installed from
@@ -266,7 +322,7 @@ else
 fi
 detail "fly-transcriber from $archive" \
   "as a uv tool (PyObjC menubar app; bundles ffmpeg via imageio-ffmpeg)"
-uv tool install -q --python "$PYTHON" --force --reinstall-package fly-transcriber \
+run_with_progress uv tool install --python "$PYTHON" --force --reinstall-package fly-transcriber \
   "fly-transcriber @ $archive"
 
 # -- models ------------------------------------------------------------------
