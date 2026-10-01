@@ -882,9 +882,17 @@ def test_mlx_launcher_skips_alignment(monkeypatch):
     monkeypatch.setitem(sys.modules, "ownscribe.transcription", types.ModuleType("ownscribe.transcription"))
     monkeypatch.setitem(sys.modules, "ownscribe.transcription.whisperx_transcriber", module)
 
+    printed = []
+    click = types.ModuleType("click")
+    click.echo = lambda message=None, *a, **k: printed.append(message)
+    monkeypatch.setitem(sys.modules, "click", click)
+
     mlx_launch.install()
     transcriber = FakeTranscriber()
     assert transcriber._should_align() is False
+    click.echo("Whisper model ready: large-v3")
+    click.echo("Alignment model not preloaded (language auto-detect).")
+    assert printed == ["Whisper model ready: large-v3"]  # no claims about a model there isn't
     transcriber._prepare_transcription_models(language="fi", step_key="preparing_models",
                                               show_deferred_align_note=True)
     assert calls == [{"language": "fi", "step_key": "preparing_models",

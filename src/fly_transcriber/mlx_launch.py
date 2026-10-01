@@ -122,6 +122,27 @@ def install() -> None:
     WhisperXTranscriber._load_model = _load_model
     WhisperXTranscriber._should_align = lambda self: False
     WhisperXTranscriber._prepare_transcription_models = _prepare_transcription_models
+    _drop_alignment_notes()
+
+
+def _drop_alignment_notes() -> None:
+    """Silence warmup's closing line about the alignment model.
+
+    ownscribe prints it whatever was loaded ("not preloaded", or "ready: fi" when
+    a language is set), and there is none: in the installer it is only confusing.
+    """
+    try:
+        import click
+    except ImportError:
+        return
+    echo = click.echo
+
+    def _echo(message=None, *args, **kwargs):
+        if isinstance(message, str) and message.startswith("Alignment model"):
+            return
+        echo(message, *args, **kwargs)
+
+    click.echo = _echo
 
 
 def main() -> None:
