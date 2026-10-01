@@ -66,15 +66,21 @@ def write_private(path: Path, data: bytes) -> None:
 class Settings:
     """User-facing settings for the recorder.
 
-    ``large-v3`` is the default: roughly 0.8x realtime on Apple Silicon, but the
-    smallest model that transcribes languages like Finnish usefully.
+    ``large-v3`` is the default: the smallest model that transcribes languages
+    like Finnish usefully.
+
+    There are no vocabulary hints, by design: like summarizing, fixing names and
+    jargon is left to the agent writing notes from the transcript, which knows the
+    project. (MLX Whisper has no hotwords, and its prompt only primes the first
+    30 seconds.)
     """
 
     # Transcription
     model: str = "large-v3"
     language: str = ""  # "" = auto-detect; e.g. "fi", "en"
-    initial_prompt: str = ""  # domain vocabulary / names to prime Whisper
-    hotwords: str = ""
+    # "mlx" runs Whisper on the GPU, about four times faster than ownscribe's own
+    # "faster-whisper" on the CPU. Falls back to that when MLX isn't installed.
+    engine: str = "mlx"
 
     # Recording
     mic: bool = True
@@ -165,14 +171,10 @@ def build_ownscribe_config(settings: Settings) -> dict:
     # claim it is enabled when one is actually available.
     diarize_enabled = settings.diarize and bool(token)
 
-    transcription: dict = {
+    transcription = {
         "model": settings.model,
         "language": settings.language,
     }
-    if settings.initial_prompt:
-        transcription["initial_prompt"] = settings.initial_prompt
-    if settings.hotwords:
-        transcription["hotwords"] = settings.hotwords
 
     return {
         "audio": {

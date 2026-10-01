@@ -83,7 +83,7 @@ AGENT_INSTRUCTIONS = """\
 ## Meeting inbox
 
 Meeting transcripts land in `{inbox}/`. Each file is one meeting, produced by
-FLY-transcriber: recorded locally, transcribed with WhisperX (large-v3)
+FLY-transcriber: recorded locally, transcribed with Whisper (large-v3)
 and diarized with pyannote.
 
 **These are raw transcripts, not notes.** They carry `status: raw` in
@@ -108,7 +108,9 @@ have the better model and the project context.
 
 - **Speech recognition errors** are common with names, products and jargon.
   A garbled phrase is sometimes rendered as plausible-sounding nonsense rather
-  than as obvious noise. When something reads oddly, treat it as suspect.
+  than as obvious noise. When something reads oddly, treat it as suspect. The
+  transcriber is given no vocabulary, so correcting these terms from what this
+  project knows is also left to you.
 - **`speakers:`** are anonymous labels (`SPEAKER_00`) unless they were mapped
   to real names at saving time.
 - **`participants:`** lists the speakers given a real name at saving, so it is
@@ -144,7 +146,7 @@ When the transcript does not support a claim, do not make it.
 
 
 #: Where the bundled agent skill is installed, relative to a project root.
-SKILL_NAME = "meeting-inbox-to-note"
+SKILL_NAME = "fly-summarise"
 SKILL_RELPATH = Path(".claude") / "skills" / SKILL_NAME / "SKILL.md"
 
 

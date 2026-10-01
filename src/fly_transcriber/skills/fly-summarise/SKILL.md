@@ -1,13 +1,13 @@
 ---
-name: meeting-inbox-to-note
-description: Turn a raw meeting transcript from the meeting inbox (status: raw) into a meeting note, after checking the speaker diarization. Use when asked to process the meeting inbox or a transcript file.
+name: fly-summarise
+description: Summarise a raw FLY meeting transcript from the meeting inbox (status: raw) into a meeting note, after checking the speaker diarization and the domain terms. Use when asked to process the meeting inbox or a transcript file.
 ---
 
 # Meeting transcript → note
 
 Input: a file in the project's meeting inbox (`meetings/_inbox/` unless `CLAUDE.md`
 says otherwise) with `status: raw` in its frontmatter. It is a machine transcript
-(WhisperX large-v3 + pyannote diarization) that no human has reviewed.
+(Whisper large-v3 + pyannote diarization) that no human has reviewed.
 Output: one meeting note that follows this project's conventions (see `CLAUDE.md`).
 
 If no file is named, list the `status: raw` files in the inbox. If there is more than
@@ -63,17 +63,21 @@ format, follow it. The defaults below apply only where the project has none.
   4. **Open questions**
   5. **Discussion notes:** the substance, by topic, with attribution where settled.
   6. **Attribution review:** a short list of every line you reassigned or left
-     ambiguous, with its timestamp, e.g.
+     ambiguous, and every term you corrected, with its timestamp, e.g.
      `[12:40] "I already talked to Alex about this" moved Alex → Sam (Alex is addressed in the previous turn)`.
      Write "No changes" if there were none. This lets a human spot-check against the audio.
 - **Links:** if the project uses wiki links (`[[note-name]]`), link related existing
   notes (projects, earlier meetings on the same topic). Never link to notes that
   don't exist.
 - **Domain terms:** speech recognition garbles names and jargon into plausible-looking
-  words. If the project has a glossary or dictionary file, check it. Fix a term only
-  when the glossary or context makes the intended word clear, and flag the rest as
-  `[unclear: "…"]`. If a genuinely new term comes up, propose it and a definition to
-  the user; don't add it to the glossary yourself.
+  words, and the transcriber was given no vocabulary, so this is the only place they
+  get corrected. Check the project's glossary or dictionary file if it has one, the
+  people in `participants:`, earlier meeting notes and the project's own documents
+  for the right spelling. Fix a term only when that makes the intended word clear,
+  and flag the rest as `[unclear: "…"]`. List each fix in the attribution review
+  (`[15:12] "Power Way" → "Power BI"`) so a human can check it. If a genuinely new
+  term comes up, propose it and a definition to the user; don't add it to the
+  glossary yourself.
 
 ## Pass 3: insights and decisions
 

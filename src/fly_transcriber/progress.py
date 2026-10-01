@@ -2,7 +2,8 @@
 
 ownscribe reports phases but no percentage, so progress is a prediction: the
 time spent processing past runs, per second of audio, scaled to this recording.
-Each successful run adds a sample, so the estimate adapts to the machine.
+Each successful run adds a sample, so the estimate adapts to the machine. The
+engines differ about fourfold, so each keeps its own samples.
 """
 
 from __future__ import annotations
@@ -11,10 +12,12 @@ import json
 import statistics
 from pathlib import Path
 
+#: Samples for faster-whisper; other engines get a file of their own beside it.
 TIMINGS_PATH = Path("~/.config/fly-transcriber/timings.json").expanduser()
 
-#: Processing seconds per audio second before any run has been timed.
-DEFAULT_RATE = 0.35
+#: Processing seconds per audio second before any run has been timed. Measured
+#: on an M4 Pro with diarization: 0.38 (faster-whisper on CPU), 0.15 (MLX).
+DEFAULT_RATES = {"faster-whisper": 0.4, "mlx": 0.16}
 #: Recordings shorter than this are dominated by model loading; don't learn from them.
 MIN_AUDIO = 30
 MAX_SAMPLES = 10
@@ -22,9 +25,15 @@ MAX_SAMPLES = 10
 CAP = 0.95
 
 
-def _load() -> list[list[float]]:
+def _path(engine: str) -> Path:
+    if engine == "faster-whisper":
+        return TIMINGS_PATH
+    return TIMINGS_PATH.with_name(f"timings-{engine}.json")
+
+
+def _load(engine: str) -> list[list[float]]:
     try:
-        data = json.loads(TIMINGS_PATH.read_text(encoding="utf-8"))
+        data = json.loads(_path(engine).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return []
     if not isinstance(data, list):
@@ -36,23 +45,27 @@ def _load() -> list[list[float]]:
     ]
 
 
-def predict(audio_seconds: float) -> float:
+def predict(audio_seconds: float, engine: str = "faster-whisper") -> float:
     """Expected processing seconds for a recording of this length."""
-    rates = [proc / audio for audio, proc in _load()]
-    rate = statistics.median(rates) if rates else DEFAULT_RATE
+    rates = [proc / audio for audio, proc in _load(engine)]
+    if rates:
+        rate = statistics.median(rates)
+    else:
+        rate = DEFAULT_RATES.get(engine, DEFAULT_RATES["faster-whisper"])
     return max(rate * audio_seconds, 1.0)
 
 
-def record(audio_seconds: float, processing_seconds: float) -> None:
+def record(audio_seconds: float, processing_seconds: float, engine: str = "faster-whisper") -> None:
     """Remember how long a finished run took."""
     if audio_seconds < MIN_AUDIO or processing_seconds <= 0:
         return
-    samples = (_load() + [[audio_seconds, processing_seconds]])[-MAX_SAMPLES:]
+    samples = (_load(engine) + [[audio_seconds, processing_seconds]])[-MAX_SAMPLES:]
+    path = _path(engine)
     try:
-        TIMINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        tmp = TIMINGS_PATH.with_suffix(".json.tmp")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(samples), encoding="utf-8")
-        tmp.replace(TIMINGS_PATH)
+        tmp.replace(path)
     except OSError:
         pass  # timings are a nicety; never fail a run over them
 

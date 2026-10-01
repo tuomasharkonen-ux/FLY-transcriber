@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 import subprocess
 import textwrap
 import threading
+import types
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -15,6 +17,8 @@ import pytest
 
 from fly_transcriber import config as appconfig
 from fly_transcriber import diarization
+from fly_transcriber import mlx_launch
+from fly_transcriber import recorder as recorder_mod
 from fly_transcriber import state as meeting_state
 from fly_transcriber.server import Api, make_server
 from fly_transcriber.config import Settings, build_ownscribe_config
@@ -192,11 +196,22 @@ def test_no_summarize_flag_passed():
     assert "--no-summarize" in Recorder(Settings())._cli_args()
 
 
-def test_optional_transcription_fields_omitted_when_empty(monkeypatch):
+def test_no_vocabulary_hints_reach_ownscribe(monkeypatch):
+    """Fixing names and jargon is the note-writing agent's job, not Whisper's."""
     monkeypatch.setattr(appconfig, "read_hf_token", lambda: "")
     doc = build_ownscribe_config(Settings())
-    assert "hotwords" not in doc["transcription"]
-    assert "initial_prompt" not in doc["transcription"]
+    assert doc["transcription"] == {"model": "large-v3", "language": ""}
+    args = Recorder(Settings())._cli_args()
+    assert "--hotwords" not in args and "--initial-prompt" not in args
+
+
+def test_old_vocabulary_settings_are_ignored(tmp_path, monkeypatch):
+    path = tmp_path / "settings.toml"
+    path.write_text('hotwords = "Acme"\ninitial_prompt = "Globex"\nlanguage = "fi"\n', encoding="utf-8")
+    monkeypatch.setattr(appconfig, "SETTINGS_PATH", path)
+    settings = appconfig.load_settings()
+    assert settings.language == "fi"
+    assert settings.engine == "mlx"
 
 
 def test_apply_backs_up_existing_config(tmp_path, monkeypatch):
@@ -569,7 +584,7 @@ def test_create_project_installs_skill(tmp_path):
     skill = tmp_path / "acme" / SKILL_RELPATH
     assert skill in written
     text = skill.read_text(encoding="utf-8")
-    assert text.startswith("---\nname: meeting-inbox-to-note\n")
+    assert text.startswith("---\nname: fly-summarise\n")
     assert "Attribution review" in text
 
 
@@ -748,6 +763,104 @@ def test_json_output_requested(monkeypatch):
 
 def test_cli_args_omit_diarize_when_disabled():
     assert "--diarize" not in Recorder(Settings(diarize=False))._cli_args()
+
+
+# -- transcription engine -----------------------------------------------------
+
+
+def _ownscribe_script(tmp_path, monkeypatch, shebang=f"#!{sys.executable}"):
+    script = tmp_path / "ownscribe"
+    script.write_text(f"{shebang}\nfrom ownscribe.cli import cli\n", encoding="utf-8")
+    monkeypatch.setattr(
+        recorder_mod.shutil, "which", lambda name: str(script) if name == "ownscribe" else None
+    )
+    return script
+
+
+def test_ownscribe_python_comes_from_its_shebang(tmp_path):
+    script = tmp_path / "ownscribe"
+    script.write_text(f"#!{sys.executable}\n", encoding="utf-8")
+    assert recorder_mod.ownscribe_python(str(script)) == sys.executable
+    script.write_text("#!/usr/bin/env python3\n", encoding="utf-8")  # not a uv tool
+    assert recorder_mod.ownscribe_python(str(script)) is None
+    assert recorder_mod.ownscribe_python(str(tmp_path / "missing")) is None
+
+
+def test_mlx_is_used_when_installed(tmp_path, monkeypatch):
+    _ownscribe_script(tmp_path, monkeypatch)
+    monkeypatch.setattr(recorder_mod, "has_mlx", lambda python: True)
+    prefix, engine = recorder_mod.ownscribe_command("mlx")
+    assert engine == "mlx"
+    assert prefix == [sys.executable, "-P", str(recorder_mod.MLX_LAUNCHER)]
+    assert recorder_mod.MLX_LAUNCHER.is_file()
+
+
+def test_falls_back_to_ownscribe_whisper(tmp_path, monkeypatch):
+    script = _ownscribe_script(tmp_path, monkeypatch)
+    monkeypatch.setattr(recorder_mod, "has_mlx", lambda python: False)
+    assert recorder_mod.ownscribe_command("mlx") == ([str(script)], "faster-whisper")
+    monkeypatch.setattr(recorder_mod, "has_mlx", lambda python: True)
+    assert recorder_mod.ownscribe_command("faster-whisper") == ([str(script)], "faster-whisper")
+
+
+def test_has_mlx_probes_the_environment(tmp_path):
+    assert recorder_mod.has_mlx(sys.executable) is False  # FLY's own env has no MLX
+    assert recorder_mod.has_mlx(str(tmp_path / "no-python")) is False
+
+
+def test_mlx_result_is_shaped_for_whisperx():
+    result = {
+        "language": "fi",
+        "segments": [
+            {"start": 0.0, "end": 2.0, "text": " Moi.", "tokens": [1, 2]},
+            {"start": 2.0, "end": 30.0, "text": " "},  # silence
+        ],
+    }
+    assert mlx_launch.to_whisperx(result) == {
+        "segments": [{"start": 0.0, "end": 2.0, "text": " Moi."}],
+        "language": "fi",
+    }
+
+
+def test_mlx_decodes_each_window_on_its_own(monkeypatch):
+    """Conditioning on the previous window made large-v3 loop and drop sentences."""
+    calls = {}
+    fake = types.ModuleType("mlx_whisper")
+
+    def transcribe(audio, **options):
+        calls.update(options, audio=audio)
+        return {"language": "fi", "segments": [{"start": 0.0, "end": 1.0, "text": " Joo."}]}
+
+    fake.transcribe = transcribe
+    monkeypatch.setitem(sys.modules, "mlx_whisper", fake)
+    monkeypatch.setattr(mlx_launch, "_release", lambda: calls.setdefault("released", True))
+
+    out = mlx_launch.MlxModel("/models/large-v3", "fi").transcribe(
+        "audio", batch_size=16, print_progress=True, combined_progress=True
+    )
+    assert calls["condition_on_previous_text"] is False
+    assert calls["path_or_hf_repo"] == "/models/large-v3"
+    assert calls["language"] == "fi"
+    assert calls["released"]
+    assert out["segments"][0]["text"] == " Joo."
+
+
+def test_mlx_weights_come_from_the_cache_first():
+    asked = []
+
+    def uncached(repo, local_files_only=False):
+        asked.append(local_files_only)
+        if local_files_only:
+            raise OSError("not cached")
+        return "/downloaded"
+
+    assert mlx_launch.resolve_model("r", uncached) == "/downloaded"
+    assert asked == [True, False]
+    assert mlx_launch.resolve_model("r", lambda repo, local_files_only=False: "/cache") == "/cache"
+
+
+def test_mlx_repo_follows_the_model_setting():
+    assert mlx_launch.repo_for("large-v3") == "mlx-community/whisper-large-v3-mlx"
 
 
 def test_progress_parsing_advances_phases():
@@ -1260,13 +1373,26 @@ def test_progress_prediction_adapts_to_history(tmp_path, monkeypatch):
     from fly_transcriber import progress
 
     monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
-    assert progress.predict(1000) == pytest.approx(1000 * progress.DEFAULT_RATE)
+    assert progress.predict(1000) == pytest.approx(1000 * progress.DEFAULT_RATES["faster-whisper"])
 
     progress.record(10, 5)  # too short to learn from
     assert not (tmp_path / "timings.json").exists()
     progress.record(600, 120)
     progress.record(1200, 240)
     assert progress.predict(3000) == pytest.approx(600)  # median rate 0.2
+
+
+def test_progress_keeps_timings_per_engine(tmp_path, monkeypatch):
+    """MLX is ~4x faster; CPU timings must not make its estimates crawl."""
+    from fly_transcriber import progress
+
+    monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
+    progress.record(600, 240)  # faster-whisper
+    assert progress.predict(1000, "mlx") == pytest.approx(1000 * progress.DEFAULT_RATES["mlx"])
+    progress.record(600, 90, "mlx")
+    assert (tmp_path / "timings-mlx.json").exists()
+    assert progress.predict(1000, "mlx") == pytest.approx(150)
+    assert progress.predict(1000) == pytest.approx(400)
 
 
 def test_progress_fraction_is_capped_below_done():

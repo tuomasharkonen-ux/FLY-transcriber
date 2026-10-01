@@ -37,8 +37,12 @@ BIN_DIR="$HOME/.local/bin"
 # ownscribe supports Python 3.12 and 3.13; uv fetches it if it isn't installed.
 PYTHON="3.12"
 # Pinned to the minor version this app is tested with: the local speaker model
-# relies on how ownscribe and pyannote look the model up.
+# relies on how ownscribe and pyannote look the model up, and the MLX launcher
+# on how ownscribe loads and calls Whisper.
 OWNSCRIBE="ownscribe>=0.15,<0.16"
+# Added to ownscribe's environment: Whisper on the GPU, about four times faster
+# than ownscribe's own CPU transcription. FLY releases before v0.5.0 ignore it.
+MLX_WHISPER="mlx-whisper==0.4.3"
 
 DATA_DIR="$HOME/.local/share/fly-transcriber"
 MODEL_DIR="$DATA_DIR/models/pyannote/speaker-diarization-community-1"
@@ -232,13 +236,13 @@ if command -v uv >/dev/null 2>&1; then
 else
   detail "uv: Astral's Python package manager, into ~/.local/bin"
 fi
-detail "$OWNSCRIBE: recording + transcription CLI (WhisperX, pyannote), as a" \
-  "uv tool on Python $PYTHON (uv downloads Python if needed)"
+detail "$OWNSCRIBE: recording + transcription CLI (WhisperX, pyannote), with" \
+  "$MLX_WHISPER, as a uv tool on Python $PYTHON (uv downloads Python if needed)"
 if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet
   export PATH="$BIN_DIR:$PATH"
 fi
-uv tool install -q --python "$PYTHON" --upgrade "$OWNSCRIBE"
+uv tool install -q --python "$PYTHON" --upgrade "$OWNSCRIBE" --with "$MLX_WHISPER"
 
 # The newest v* tag is the latest release. Tags only, so the speaker model's
 # own release (speaker-model-v1) is never mistaken for one. Installed from
@@ -289,8 +293,9 @@ fi
 
 if [ "$warmup" -eq 1 ]; then
   step 4 "Downloading the speech models (about 3 GB; this is the long part)"
-  detail "Whisper large-v3 (faster-whisper) and a wav2vec2 word-alignment model" \
-    "from Hugging Face into ~/.cache/huggingface (fly-transcriber warmup)"
+  detail "Whisper large-v3 (MLX, or faster-whisper before v0.5.0) and a wav2vec2" \
+    "word-alignment model from Hugging Face into ~/.cache/huggingface" \
+    "(fly-transcriber warmup)"
   if ! "$BIN_DIR/fly-transcriber" warmup; then
     warmup=0
     warn "The speech models did not download. FLY retries during your first recording, or run the install command again."

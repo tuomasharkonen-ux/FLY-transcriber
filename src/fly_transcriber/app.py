@@ -19,7 +19,7 @@ from .filing import file_meeting
 from .launcher import install_launcher, remove_launcher
 from .meetings import list_meetings, move_to_trash, parse_meeting_dir
 from .projects import apply_plan, display_path, install_agent_files, plan_from_request, plan_to_dict
-from .recorder import Phase, RunState, Recorder, resolve_ownscribe
+from .recorder import Phase, RunState, Recorder, ownscribe_command
 from .server import APP_ID, Api, serve_in_background, show_running_instance
 from .shell import Shell, activate, alert, call_on_main
 from .transcript import merge_speakers, resolve_merges, speakers
@@ -294,7 +294,6 @@ class MeetingRecorderApp:
                 "language": self.settings.language,
                 "silence_timeout": self.settings.silence_timeout,
                 "speaker_count": self.settings.min_speakers,
-                "hotwords": self.settings.hotwords,
                 "mic": self.settings.mic,
                 "diarize": self.settings.diarize,
                 "keep_recording": self.settings.keep_recording,
@@ -360,7 +359,6 @@ class MeetingRecorderApp:
         s = self.settings
         s.model = str(payload.get("model", s.model))
         s.language = str(payload.get("language", s.language)).strip()
-        s.hotwords = str(payload.get("hotwords", s.hotwords)).strip()
         s.silence_timeout = max(0, int(payload.get("silence_timeout", s.silence_timeout) or 0))
         count = max(0, int(payload.get("speaker_count", s.min_speakers) or 0))
         s.min_speakers = s.max_speakers = count
@@ -675,11 +673,13 @@ def _warmup() -> int:
 
     Applies this app's ownscribe config first: ownscribe's own default enables
     local summarization, and warming up with it would download an LLM this app
-    never runs. Diarization is skipped -- the installer places that model.
+    never runs. Diarization is skipped -- the installer places that model. With
+    MLX the launcher's model loader runs, so it is the MLX weights that download.
     """
     settings = load_settings()
     apply_ownscribe_config(settings)
-    cmd = [*resolve_ownscribe(), "warmup", "--model", settings.model, "--no-diarization"]
+    prefix, _engine = ownscribe_command(settings.engine)
+    cmd = [*prefix, "warmup", "--model", settings.model, "--no-diarization"]
     if settings.language:
         cmd += ["--language", settings.language]
     return subprocess.run(cmd, check=False).returncode

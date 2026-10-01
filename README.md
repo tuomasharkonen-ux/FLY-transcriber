@@ -22,7 +22,7 @@ audio or text is sent anywhere. Tell people when you record; see
 
 ```
 🎙️ Record mic + computer audio  →  📝 Transcribe  →  👥 Label speakers  →  🏷️ Name them  →  🤝 Hand over to your agent
-                                   Whisper large-v3  pyannote                               meeting-inbox-to-note skill
+                                   Whisper large-v3  pyannote                               /fly-summarise skill
 ```
 
 A short animated walkthrough is in [`docs/how-it-works.html`](docs/how-it-works.html)
@@ -35,8 +35,8 @@ A short animated walkthrough is in [`docs/how-it-works.html`](docs/how-it-works.
   that are waiting. It captures your microphone and system audio, so remote
   participants are included.
 - **Local transcription** with Whisper `large-v3` by OpenAI, running on your
-  Mac. This is accurate even for languages that smaller models get wrong, such
-  as Finnish.
+  Mac's GPU. This is accurate even for languages that smaller models get wrong,
+  such as Finnish.
 - **Speaker labels** from pyannote. You give each speaker a real name before
   saving.
 - **Saving into projects.** Each transcript lands in a folder your agent works
@@ -52,6 +52,8 @@ things up, while your own agent has the project context and a stronger model.
 
 - A Mac with Apple Silicon (M1 or later) running **macOS 14.2 or later**
   (needed for system audio capture)
+- **16 GB of memory** recommended: for a minute or two after each meeting,
+  transcription uses about 5 GB
 - About **5 GB of disk space**, mostly for the speech models
 - An internet connection while installing (afterwards FLY works offline)
 - An AI coding agent such as [Claude Code](https://claude.com/claude-code) to
@@ -80,7 +82,9 @@ it installs:
 1. **The tools FLY runs on:** [uv](https://docs.astral.sh/uv/) (into
    `~/.local/bin`, if you don't have it) and
    [ownscribe](https://github.com/paberr/ownscribe), the recording and
-   transcription engine (WhisperX + pyannote), as a `uv` tool on Python 3.12.
+   transcription engine (WhisperX + pyannote), as a `uv` tool on Python 3.12,
+   with [MLX Whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper)
+   added so that Whisper runs on the GPU.
 2. **The FLY app,** as a `uv` tool, from the latest release's source archive.
    It brings its own `ffmpeg`.
 3. **The speaker model** (30 MB, checksum-verified) into
@@ -128,13 +132,13 @@ wants to bypass the system's private window picker and access screen and audio
 directly". That is FLY: it runs on Python, and macOS shows the name of the
 program, not of the app. The wording of that prompt is fixed by macOS.
 
-### Tell it about your vocabulary
+### Names, jargon and language
 
-Open **Settings** (the sliders icon in the panel) and fill in **Vocabulary
-hints**: a comma-separated list of names, products and jargon. Whisper gets
-exactly these words wrong, and listing them measurably helps. Hints are applied
-when a recording starts, so add them before the meeting. You can also pin the
-**Language** instead of relying on auto-detection.
+There is no vocabulary list to fill in. Whisper mishears some names, products
+and jargon, and your agent corrects them when it writes the note, because it
+knows the project: the `/fly-summarise` skill checks them against your notes and
+lists every fix for you to spot-check. If auto-detection picks the wrong
+language, pin the **Language** in **Settings** (the sliders icon in the panel).
 
 ## Using it
 
@@ -146,15 +150,17 @@ when a recording starts, so add them before the meeting. You can also pin the
    Open the panel and click the one marked **Save**. Add a title,
    name each speaker (each one is shown with their first line so
    you can tell them apart), pick a project, and save.
-4. Ask your agent to process the inbox. The skill turns the transcript into a
-   note and deletes the raw file.
+4. Ask your agent to process the inbox (`/fly-summarise` in Claude Code). The
+   skill turns the transcript into a note and deletes the raw file.
 
 Clicking a saved recording opens its transcript in the FLY window. Right-click
 the icon for the rest: Add Project, the recordings folder, advanced settings
 and Quit.
 
-Processing isn't instant. It runs at about **0.8× realtime**, so a one-hour
-meeting takes around 50 minutes, plus speaker detection.
+Processing takes about a sixth of the meeting's length, speaker detection
+included: a 25-minute meeting is ready about 4 minutes after you stop (on an M4
+Pro). An install from before v0.5.0 transcribes on the CPU, about 2.5× slower,
+until you run the install command again.
 
 ### Projects
 
@@ -172,8 +178,8 @@ Either way, FLY adds `meetings/_inbox/` for the transcripts and writes two files
 at the project root:
 
 - `CLAUDE.md`: tells the agent what the inbox is and what to watch out for.
-- `.claude/skills/meeting-inbox-to-note/SKILL.md`: the step-by-step skill for
-  turning a transcript into a note.
+- `.claude/skills/fly-summarise/SKILL.md`: the step-by-step skill for turning
+  a transcript into a note (`/fly-summarise`).
 
 Before anything is created, the form lists every folder and file it will add and
 marks the ones that already exist. Under **Options** you can change the
@@ -298,6 +304,16 @@ on it:
   hasn't been granted).
 - **Summaries were tried and removed.** The local model (`phi-4-mini`) invented
   a decision nobody made and drifted from Finnish into English partway through.
+  Vocabulary hints went the same way: the agent writing the note knows the
+  project's names and terms far better than a word list given to Whisper.
+- **Whisper runs on the GPU with MLX.** ownscribe transcribes with
+  faster-whisper on the CPU, which was about 80% of the wait after a meeting.
+  ownscribe has no setting for another engine, so the app starts it through a
+  small launcher (`mlx_launch.py`) that swaps in MLX Whisper where ownscribe
+  loads its model and leaves the rest of the pipeline as it is. Each 30-second
+  window is decoded on its own: feeding in the previous window's text, Whisper's
+  default, made `large-v3` repeat phrases and drop sentences. Without MLX
+  installed, the app runs ownscribe unchanged.
 - **The UI is a local web page in a native popover.** The panel and the FLY
   window are `WKWebView`s showing the same Preact UI the app serves on
   `127.0.0.1:8756`, so it can also be opened in a browser. The popover's page is
@@ -351,6 +367,7 @@ release.
 Built on [ownscribe](https://github.com/paberr/ownscribe),
 [WhisperX](https://github.com/m-bain/whisperX),
 [OpenAI Whisper](https://github.com/openai/whisper),
+[MLX Whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper),
 [pyannote.audio](https://github.com/pyannote/pyannote-audio) and
 [PyObjC](https://github.com/ronaldoussoren/pyobjc). The UI bundles
 [Preact](https://preactjs.com) (MIT) and [htm](https://github.com/developit/htm)

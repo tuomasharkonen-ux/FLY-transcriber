@@ -95,7 +95,7 @@ def snapshot():
         ],
         "projects": [project_dict(p) for p in PROJECTS],
         "settings": {"model": "large-v3", "language": "", "silence_timeout": 300, "speaker_count": 0,
-                     "hotwords": "Acme, Globex, Kubernetes", "mic": True, "diarize": True, "keep_recording": True},
+                     "mic": True, "diarize": True, "keep_recording": True},
     }
 
 

@@ -88,6 +88,47 @@ def resolve_ownscribe() -> list[str]:
     )
 
 
+#: Runs ownscribe with MLX Whisper swapped in; see that module.
+MLX_LAUNCHER = Path(__file__).with_name("mlx_launch.py")
+
+
+def ownscribe_python(executable: str) -> str | None:
+    """The Python an installed ownscribe runs on, read from its script's shebang."""
+    try:
+        with open(executable, "rb") as f:
+            first = f.readline(512).decode("utf-8", errors="replace").strip()
+    except OSError:
+        return None
+    if not first.startswith("#!"):
+        return None
+    python = first[2:].strip()
+    return python if " " not in python and os.access(python, os.X_OK) else None
+
+
+def has_mlx(python: str) -> bool:
+    """Whether ownscribe's environment has mlx-whisper (the installer adds it)."""
+    probe = "import importlib.util, sys; sys.exit(importlib.util.find_spec('mlx_whisper') is None)"
+    try:
+        return subprocess.run([python, "-c", probe], capture_output=True, timeout=15).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def ownscribe_command(engine: str = "mlx") -> tuple[list[str], str]:
+    """The command prefix for ownscribe, and the engine it will transcribe with.
+
+    MLX when asked for and installed; otherwise plain ownscribe (faster-whisper),
+    so an install from before MLX keeps working, only slower.
+    """
+    base = resolve_ownscribe()
+    if engine == "mlx" and len(base) == 1:
+        python = ownscribe_python(base[0])
+        if python and has_mlx(python):
+            # -P: don't put this package's folder on the path of ownscribe's Python.
+            return [python, "-P", str(MLX_LAUNCHER)], "mlx"
+    return base, "faster-whisper"
+
+
 class Recorder:
     """Runs one ownscribe pipeline at a time and tracks its progress."""
 
@@ -101,6 +142,7 @@ class Recorder:
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
         self._known_dirs: set[Path] = set()
+        self._engine = "faster-whisper"  # set per run by start()
         self.state = RunState()
 
     # -- public API ----------------------------------------------------------
@@ -118,7 +160,8 @@ class Recorder:
         # ownscribe renames it to include a generated title once it has a summary.
         self._known_dirs = {p for p in out_dir.iterdir() if p.is_dir()}
 
-        cmd = [*resolve_ownscribe(), *self._cli_args()]
+        prefix, self._engine = ownscribe_command(self._settings.engine)
+        cmd = [*prefix, *self._cli_args()]
         self._proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -178,10 +221,6 @@ class Recorder:
         args += ["--format", "json"]
         if s.diarize:
             args.append("--diarize")
-        if s.initial_prompt:
-            args += ["--initial-prompt", s.initial_prompt]
-        if s.hotwords:
-            args += ["--hotwords", s.hotwords]
         return args
 
     @staticmethod
@@ -246,7 +285,9 @@ class Recorder:
                 if _phase_order(phase) > _phase_order(self.state.phase):
                     if self.state.processing_started_at is None:
                         self.state.processing_started_at = time.time()
-                        self.state.processing_eta = progress.predict(self.state.elapsed)
+                        self.state.processing_eta = progress.predict(
+                            self.state.elapsed, self._engine
+                        )
                     self.state.phase = phase
                     self.state.detail = marker
                     changed = True
@@ -265,7 +306,9 @@ class Recorder:
         if returncode == 0:
             if self.state.processing_started_at is not None:
                 progress.record(
-                    self.state.elapsed, time.time() - self.state.processing_started_at
+                    self.state.elapsed,
+                    time.time() - self.state.processing_started_at,
+                    self._engine,
                 )
             self.state.phase = Phase.DONE
             self.state.detail = "Complete"

@@ -807,10 +807,6 @@ const SettingsView = ({ settings, projects, adding, refresh, toast }) => {
             <${LanguagePicker} value=${draft.language} onChange=${set("language")} />
           <//>
         </div>
-        <${Field} label="Vocabulary hints"
-          hint="Names, products and jargon the transcriber gets wrong. Applied at recording start — the only point where it helps.">
-          <input class="input" value=${draft.hotwords} placeholder="Acme, Kubernetes, Aino Virtanen" onInput=${text("hotwords")} />
-        <//>
       </div>
 
       <div class="card section">
