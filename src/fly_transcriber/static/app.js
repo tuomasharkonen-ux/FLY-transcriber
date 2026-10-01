@@ -111,7 +111,7 @@ const RecordingRow = ({ meeting, onFile, onDelete }) => {
     </li>`;
 };
 
-const DeleteDialog = ({ meeting, onClose, toast }) => {
+const DeleteDialog = ({ meeting, onClose, onDeleted, toast }) => {
   const ref = useRef();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -124,6 +124,7 @@ const DeleteDialog = ({ meeting, onClose, toast }) => {
     try {
       await api("/api/delete", { meeting: meeting.name });
       toast("Moved to the Trash");
+      onDeleted?.();
       ref.current.close();
     } catch (err) {
       setError(err.message);
@@ -226,6 +227,7 @@ const Transcript = ({ detail, meeting }) => html`
 
 const RecordingView = ({ meeting, onFile, toast }) => {
   const [detail, error] = useDetail(meeting);
+  const [deleting, setDeleting] = useState(false);
   if (!meeting) {
     return html`<section class="page">
       <a class="back" href="#/"><${Icon} name="back" /> Recordings</a>
@@ -249,6 +251,8 @@ const RecordingView = ({ meeting, onFile, toast }) => {
         </div>
         <div class="head-actions">
           <${IconButton} icon="folder" label="Show in Finder" onClick=${reveal} />
+          ${!meeting.processing && html`
+            <${IconButton} icon="trash" label="Delete recording" onClick=${() => setDeleting(true)} />`}
           ${canAct && html`
             <${Button} icon="copy" onClick=${() => copyTranscript(meeting, toast)}>Copy<//>
             <${Button} variant="primary" onClick=${() => onFile(meeting)}>
@@ -302,6 +306,8 @@ const RecordingView = ({ meeting, onFile, toast }) => {
           </div>
         </aside>
       </div>
+      ${deleting && html`<${DeleteDialog} meeting=${meeting} toast=${toast}
+        onDeleted=${() => go("#/")} onClose=${() => setDeleting(false)} />`}
     </section>`;
 };
 
