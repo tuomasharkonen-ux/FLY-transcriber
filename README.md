@@ -43,7 +43,8 @@ A short animated walkthrough is in [`docs/how-it-works.html`](docs/how-it-works.
   in, such as an Obsidian vault or a repo, marked `status: raw`.
 - **An agent skill** that turns the raw transcript into a proper note. It checks
   who said what from context, writes in the meeting's language, fixes misheard
-  terms and leaves an attribution review for you to spot-check.
+  terms, and tells you what it changed so you can spot-check (in its reply,
+  not in the note).
 
 There is deliberately **no built-in summary**. A small local model makes
 things up, while your own agent has the project context and a stronger model.
@@ -197,8 +198,8 @@ them to your project. Put your note template, folder layout and task format in
 Labels come from voice alone, so treat them as a strong hint rather than a
 fact. Short replies ("Yeah.", "Right.") and two people sharing one laptop mic
 are the usual sources of mistakes. That's why the agent skill checks every
-decision and action item against the text before naming anyone, and lists
-every change it made. Speaker names are applied only to the saved copy; the
+decision and action item against the text before naming anyone, and tells
+you every change it made. Speaker names are applied only to the saved copy; the
 original transcript keeps its anonymous labels, so a wrong mapping can always
 be redone.
 

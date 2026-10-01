@@ -62,10 +62,6 @@ format, follow it. The defaults below apply only where the project has none.
      duplicating it.
   4. **Open questions**
   5. **Discussion notes:** the substance, by topic, with attribution where settled.
-  6. **Attribution review:** a short list of every line you reassigned or left
-     ambiguous, and every term you corrected, with its timestamp, e.g.
-     `[12:40] "I already talked to Alex about this" moved Alex → Sam (Alex is addressed in the previous turn)`.
-     Write "No changes" if there were none. This lets a human spot-check against the audio.
 - **Links:** if the project uses wiki links (`[[note-name]]`), link related existing
   notes (projects, earlier meetings on the same topic). Never link to notes that
   don't exist.
@@ -86,11 +82,20 @@ the finished note for candidates, check them against existing entries for duplic
 and list them when presenting the note. Create them only after the user agrees.
 Pass 1's rule applies here too: no named decision-maker unless the attribution is settled.
 
+## Attribution review
+
+Give this to the user in your reply when presenting the note. It is not part of the
+note. List every line you reassigned or left ambiguous, and every term you corrected,
+with its timestamp, e.g.
+`[12:40] "I already talked to Alex about this" moved Alex → Sam (Alex is addressed in the previous turn)`.
+Write "No changes" if there were none. This lets a human spot-check against the audio.
+
 ## Rules
 
 - Never state a decision, owner, date or number that is not in the transcript.
   When the transcript does not support a claim, leave it out.
 - Don't smooth over disagreement. If people disagreed and it wasn't resolved, say so.
-- When done, show the user the note and the attribution review. Delete the inbox file
+- When done, show the user the note, with the attribution review in your reply (never
+  in the note). Delete the inbox file
   only once the note is written, and only if `CLAUDE.md` allows it or the user agrees;
   if writing the note failed, keep the inbox file.
