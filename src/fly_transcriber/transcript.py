@@ -32,6 +32,11 @@ _MD_LINE_RE = re.compile(r"^\[(?P<time>[\d:]+)\]\s*(?P<text>.*)$")
 #: boundary artefact, not a real interjection.
 MIN_RUN_WORDS = 2
 
+#: A turn this short that doesn't end a sentence may be the opening words of the
+#: next speaker's sentence; see ``_repair_sentence_openings``.
+MAX_OPENING_WORDS = 2
+_SENTENCE_END = (".", "?", "!", "…")
+
 
 @dataclass
 class Turn:
@@ -97,7 +102,32 @@ def _turns_from_json(path: Path) -> list[Turn]:
         if not isinstance(segment, dict):
             continue
         turns.extend(_split_segment(segment))
-    return turns
+    return _repair_sentence_openings(turns)
+
+
+def _repair_sentence_openings(turns: list[Turn]) -> list[Turn]:
+    """Give a sentence's first words back to the person who says the rest of it.
+
+    At a speaker change, word timings are least precise, and the first word or
+    two of the new speaker's sentence ("Mutta", "Se") often land on the previous
+    speaker: a short turn that ends no sentence, followed by another speaker
+    carrying on in lowercase. On a 25-minute meeting, this halved the speaker
+    changes that cut a sentence in two.
+    """
+    repaired: list[Turn] = []
+    for turn in turns:
+        last = repaired[-1] if repaired else None
+        if (
+            last is not None
+            and last.speaker != turn.speaker
+            and len(last.text.split()) <= MAX_OPENING_WORDS
+            and not last.text.rstrip().endswith(_SENTENCE_END)
+            and turn.text[:1].islower()
+        ):
+            repaired[-1] = Turn(turn.speaker, last.start, f"{last.text} {turn.text}")
+            continue
+        repaired.append(turn)
+    return repaired
 
 
 def _split_segment(segment: dict) -> list[Turn]:

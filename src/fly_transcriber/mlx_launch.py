@@ -2,17 +2,24 @@
 
 ownscribe transcribes with faster-whisper on the CPU, which is most of the wait
 after a recording. MLX runs the same Whisper model on the Mac's GPU, about four
-times faster. Everything else -- capture, alignment, diarization, the output
-files and the log lines ``recorder.py`` reads -- stays ownscribe's: only the
-object it calls ``.transcribe(audio, ...)`` on is replaced.
+times faster. Capture, diarization, the output files and the log lines
+``recorder.py`` reads stay ownscribe's: only the object it calls
+``.transcribe(audio, ...)`` on is replaced.
+
+Word timings come from Whisper itself, not from whisperx's wav2vec2 alignment,
+which ownscribe is told to skip. Alignment needs a 0.4-4 GB model per language,
+downloaded at the first meeting in that language -- a surprise download, and a
+failed transcript when offline. Whisper's own timings are a little less precise
+at speaker changes; ``transcript.py`` repairs the typical error.
 
 This file runs on ownscribe's Python, not FLY's: ``recorder.ownscribe_command``
 starts it with ``-P`` so FLY's own modules beside it are not importable, and it
-imports nothing from FLY. It relies on two ownscribe 0.15 internals, which the
+imports nothing from FLY. It relies on these ownscribe 0.15 internals, which the
 weekly upstream workflow checks: ``WhisperXTranscriber._load_model`` sets
-``self._model``, and ``_transcribe_inner`` calls ``self._model.transcribe(audio,
-...)`` and reads ``"segments"`` and ``"language"`` from the result, as from
-whisperx.
+``self._model``; ``_transcribe_inner`` calls ``self._model.transcribe(audio,
+...)``, reads ``"segments"`` and ``"language"`` from the result, as from
+whisperx, and aligns only if ``_should_align()``; ``_prepare_transcription_models``
+takes ``load_align``.
 """
 
 from __future__ import annotations
@@ -39,15 +46,19 @@ def resolve_model(repo: str, snapshot_download=None) -> str:
 
 
 def to_whisperx(result: dict) -> dict:
-    """mlx-whisper's result in the shape ``whisperx.align`` takes."""
-    return {
-        "segments": [
-            {"start": s["start"], "end": s["end"], "text": s["text"]}
-            for s in result["segments"]
-            if s["text"].strip()  # MLX emits empty segments over silence
-        ],
-        "language": result["language"],
-    }
+    """mlx-whisper's result in the shape of an aligned whisperx result."""
+    segments = []
+    for s in result["segments"]:
+        if not s["text"].strip():  # MLX emits empty segments over silence
+            continue
+        words = [
+            {"word": w["word"].strip(), "start": w["start"], "end": w["end"],
+             "score": w.get("probability", 0.0)}
+            for w in s.get("words", [])
+            if w["word"].strip()
+        ]
+        segments.append({"start": s["start"], "end": s["end"], "text": s["text"], "words": words})
+    return {"segments": segments, "language": result["language"]}
 
 
 class MlxModel:
@@ -70,6 +81,8 @@ class MlxModel:
                 # large-v3 repeat phrases and drop sentences; whisperx decodes
                 # windows independently too.
                 condition_on_previous_text=False,
+                # Diarization assigns speakers word by word.
+                word_timestamps=True,
             )
         finally:
             _release()
@@ -77,7 +90,7 @@ class MlxModel:
 
 
 def _release() -> None:
-    """Free the weights (~3 GB) before alignment and diarization run."""
+    """Free the weights (~3 GB) before diarization runs."""
     try:
         import importlib
 
@@ -91,14 +104,24 @@ def _release() -> None:
 
 
 def install() -> None:
-    """Make ownscribe load an ``MlxModel`` wherever it would load faster-whisper."""
+    """Make ownscribe load an ``MlxModel`` wherever it would load faster-whisper,
+    and never load or run an alignment model."""
     from ownscribe.transcription.whisperx_transcriber import WhisperXTranscriber
 
     def _load_model(self) -> None:
         cfg = self._tx_config
         self._model = MlxModel(resolve_model(repo_for(cfg.model)), cfg.language or None)
 
+    prepare = WhisperXTranscriber._prepare_transcription_models
+
+    def _prepare_transcription_models(self, **kwargs) -> None:
+        # warmup asks for the alignment model here without consulting _should_align.
+        kwargs.update(load_align=False, show_deferred_align_note=False)
+        prepare(self, **kwargs)
+
     WhisperXTranscriber._load_model = _load_model
+    WhisperXTranscriber._should_align = lambda self: False
+    WhisperXTranscriber._prepare_transcription_models = _prepare_transcription_models
 
 
 def main() -> None:

@@ -3,7 +3,8 @@
 # while existing ones keep working, so this installs from scratch every week
 # and checks the two things that rely on their internals: the local speaker
 # model loads by its hub name when run from the models folder (and only then),
-# and ownscribe still loads and calls Whisper where the MLX launcher patches it.
+# and ownscribe still loads, calls and aligns Whisper where the MLX launcher
+# patches it.
 
 name: upstream
 
@@ -71,6 +72,9 @@ jobs:
           inner = inspect.getsource(W._transcribe_inner)
           assert 'self._model.transcribe(' in inner
           assert 'result[\"segments\"]' in inner and 'result.get(\"language\"' in inner
+          assert 'align_enabled = self._should_align()' in inner
+          assert 'load_align' in inspect.signature(W._prepare_transcription_models).parameters
           mlx_launch.install()
+          assert W._should_align(object.__new__(W)) is False
           assert W._load_model.__module__ == 'mlx_launch'
           "

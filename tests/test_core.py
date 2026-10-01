@@ -274,6 +274,46 @@ def test_detects_speakers(tmp_path):
     assert meeting.speakers == ["SPEAKER_00", "SPEAKER_01"]
 
 
+def _words_json(tmp_path, segments):
+    """ownscribe-shaped JSON from [(segment speaker, [(word, word speaker), ...])]."""
+    out, t = [], 0.0
+    for seg_speaker, words in segments:
+        ws = []
+        for word, speaker in words:
+            ws.append({"word": word, "start": t, "end": t + 0.3, "speaker": speaker})
+            t += 0.4
+        out.append({"text": " ".join(w for w, _ in words), "start": ws[0]["start"],
+                    "end": ws[-1]["end"], "speaker": seg_speaker, "words": ws})
+    path = tmp_path / "transcript.json"
+    path.write_text(json.dumps({"segments": out}), encoding="utf-8")
+    return path
+
+
+def test_sentence_opening_goes_to_who_says_the_rest(tmp_path):
+    """"Se" on the previous speaker, "on selvä…" on the next: one sentence, one speaker."""
+    path = _words_json(tmp_path, [
+        ("SPEAKER_00", [("Tehdään", "SPEAKER_00"), ("niin.", "SPEAKER_00")]),
+        ("SPEAKER_00", [("Se", "SPEAKER_00")]),
+        ("SPEAKER_01", [("on", "SPEAKER_01"), ("selvä", "SPEAKER_01"), ("käyttäjille.", "SPEAKER_01")]),
+    ])
+    turns = load_turns(path)
+    assert [(t.speaker, t.text) for t in turns] == [
+        ("SPEAKER_00", "Tehdään niin."),
+        ("SPEAKER_01", "Se on selvä käyttäjille."),
+    ]
+    assert turns[1].start == pytest.approx(0.8)  # starts where "Se" does
+
+
+def test_short_turns_that_are_their_own_sentence_stay(tmp_path):
+    path = _words_json(tmp_path, [
+        ("SPEAKER_00", [("Joo.", "SPEAKER_00")]),  # a complete answer
+        ("SPEAKER_01", [("niin", "SPEAKER_01"), ("sitten", "SPEAKER_01"), ("eteenpäin.", "SPEAKER_01")]),
+        ("SPEAKER_00", [("Okei", "SPEAKER_00")]),  # next turn starts a new sentence
+        ("SPEAKER_01", [("Mennään", "SPEAKER_01"), ("eteenpäin.", "SPEAKER_01")]),
+    ])
+    assert [t.speaker for t in load_turns(path)] == ["SPEAKER_00", "SPEAKER_01", "SPEAKER_00", "SPEAKER_01"]
+
+
 def test_unknown_is_not_a_speaker(tmp_path):
     """ownscribe marks unattributed segments "Unknown"; it is not a person."""
     d = make_meeting(tmp_path, transcript=TRANSCRIPT_WITH_UNKNOWN, summary=None)
@@ -812,14 +852,43 @@ def test_mlx_result_is_shaped_for_whisperx():
     result = {
         "language": "fi",
         "segments": [
-            {"start": 0.0, "end": 2.0, "text": " Moi.", "tokens": [1, 2]},
-            {"start": 2.0, "end": 30.0, "text": " "},  # silence
+            {"start": 0.0, "end": 2.0, "text": " Moi.", "tokens": [1, 2],
+             "words": [{"word": " Moi.", "start": 0.1, "end": 0.6, "probability": 0.9},
+                       {"word": " ", "start": 0.6, "end": 0.7, "probability": 0.1}]},
+            {"start": 2.0, "end": 30.0, "text": " ", "words": []},  # silence
         ],
     }
     assert mlx_launch.to_whisperx(result) == {
-        "segments": [{"start": 0.0, "end": 2.0, "text": " Moi."}],
+        "segments": [{"start": 0.0, "end": 2.0, "text": " Moi.",
+                      "words": [{"word": "Moi.", "start": 0.1, "end": 0.6, "score": 0.9}]}],
         "language": "fi",
     }
+
+
+def test_mlx_launcher_skips_alignment(monkeypatch):
+    """No per-language alignment model: not when recording, not at warmup."""
+    calls = []
+
+    class FakeTranscriber:
+        def _should_align(self):
+            return True
+
+        def _prepare_transcription_models(self, **kwargs):
+            calls.append(kwargs)
+
+    module = types.ModuleType("ownscribe.transcription.whisperx_transcriber")
+    module.WhisperXTranscriber = FakeTranscriber
+    monkeypatch.setitem(sys.modules, "ownscribe", types.ModuleType("ownscribe"))
+    monkeypatch.setitem(sys.modules, "ownscribe.transcription", types.ModuleType("ownscribe.transcription"))
+    monkeypatch.setitem(sys.modules, "ownscribe.transcription.whisperx_transcriber", module)
+
+    mlx_launch.install()
+    transcriber = FakeTranscriber()
+    assert transcriber._should_align() is False
+    transcriber._prepare_transcription_models(language="fi", step_key="preparing_models",
+                                              show_deferred_align_note=True)
+    assert calls == [{"language": "fi", "step_key": "preparing_models",
+                      "show_deferred_align_note": False, "load_align": False}]
 
 
 def test_mlx_decodes_each_window_on_its_own(monkeypatch):
@@ -839,6 +908,7 @@ def test_mlx_decodes_each_window_on_its_own(monkeypatch):
         "audio", batch_size=16, print_progress=True, combined_progress=True
     )
     assert calls["condition_on_previous_text"] is False
+    assert calls["word_timestamps"] is True  # diarization assigns speakers per word
     assert calls["path_or_hf_repo"] == "/models/large-v3"
     assert calls["language"] == "fi"
     assert calls["released"]
@@ -1407,7 +1477,7 @@ def test_progress_keeps_timings_per_engine(tmp_path, monkeypatch):
 
     monkeypatch.setattr(progress, "TIMINGS_PATH", tmp_path / "timings.json")
     progress.record(600, 240)  # faster-whisper
-    assert progress.predict(1000, "mlx") == pytest.approx(60 + 1000 * 0.14)
+    assert progress.predict(1000, "mlx") == pytest.approx(60 + 1000 * 0.12)
     progress.record(600, 120, "mlx")
     assert (tmp_path / "timings-mlx.json").exists()
     assert progress.predict(1000, "mlx") == pytest.approx(60 + 1000 * 0.1)

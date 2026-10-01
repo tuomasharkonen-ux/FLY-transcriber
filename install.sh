@@ -295,8 +295,8 @@ fi
 
 if [ "$warmup" -eq 1 ]; then
   step 4 "Downloading the speech models (about 3 GB; this is the long part)"
-  detail "Whisper large-v3 (MLX) and a wav2vec2 word-alignment model" \
-    "from Hugging Face into ~/.cache/huggingface (fly-transcriber warmup)"
+  detail "Whisper large-v3 (MLX), for every language, from Hugging Face into" \
+    "~/.cache/huggingface (fly-transcriber warmup)"
   if ! "$BIN_DIR/fly-transcriber" warmup; then
     warmup=0
     warn "The speech models did not download. FLY retries during your first recording, or run the install command again."

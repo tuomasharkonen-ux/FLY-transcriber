@@ -20,7 +20,7 @@ TIMINGS_PATH = Path("~/.config/fly-transcriber/timings.json").expanduser()
 #: processing seconds per audio second before any run has been timed. Measured on
 #: an M4 Pro with diarization: a 25-minute and a 5-minute recording.
 OVERHEAD = {"faster-whisper": 30.0, "mlx": 60.0}
-DEFAULT_RATES = {"faster-whisper": 0.37, "mlx": 0.14}
+DEFAULT_RATES = {"faster-whisper": 0.37, "mlx": 0.12}
 MIN_RATE = 0.02
 #: Recordings shorter than this are nearly all start-up; don't learn a rate from them.
 MIN_AUDIO = 60
