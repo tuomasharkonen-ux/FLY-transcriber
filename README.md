@@ -52,7 +52,6 @@ things up, while your own agent has the project context and a stronger model.
 
 - A Mac with Apple Silicon (M1 or later) running **macOS 14.2 or later**
   (needed for system audio capture)
-- [Homebrew](https://brew.sh), used to install `ffmpeg`
 - About **5 GB of disk space** for the speech models, downloaded during install
 - An AI coding agent such as [Claude Code](https://claude.com/claude-code) to
   turn transcripts into notes (optional)
@@ -67,15 +66,15 @@ curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/m
 
 The script checks your Mac meets the requirements and then:
 
-1. installs [uv](https://docs.astral.sh/uv/) if you don't have it, and `ffmpeg`
-   through Homebrew,
+1. installs [uv](https://docs.astral.sh/uv/) if you don't have it (no Homebrew,
+   Xcode tools or other setup needed; the app brings its own `ffmpeg`),
 2. installs [ownscribe](https://github.com/paberr/ownscribe) (the recording and
    transcription engine) and this app as `uv` tools,
 3. downloads the speaker model (30 MB) and the speech models (about 3 GB), so
    your first recording starts straight away,
 4. adds `FLY.app` to `/Applications` (or `~/Applications` if your account can't
-   write there), and a login item so the app starts with your Mac, and starts
-   it now.
+   write there), and a login item so the app starts with your Mac, then starts
+   it and opens the dashboard.
 
 No accounts or tokens are needed. Look for the FLY icon (a microphone with
 wings) in the menubar. If you quit it, open **FLY** from Spotlight (⌘Space) to

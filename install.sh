@@ -3,8 +3,8 @@
 #
 #   curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh
 #
-# Installs uv (if missing), ffmpeg (via Homebrew), ownscribe and the app, the
-# speaker model (no HuggingFace account needed) and the speech models, then
+# Installs uv (if missing), ownscribe and the app (which brings its own ffmpeg),
+# the speaker model (no HuggingFace account needed) and the speech models, then
 # registers a login item so the menubar icon starts with your Mac and adds FLY
 # to Applications (/Applications when you may write there, else ~/Applications)
 # so it can be opened from Spotlight after quitting.
@@ -20,6 +20,12 @@
 #   --uninstall       remove the app, its login item, FLY.app, models and ownscribe
 #                     (settings, recordings and transcripts are kept)
 set -eu
+
+# Everything runs inside main(), called on the last line, so sh has read the
+# whole script before running any of it. Piped into sh, the script is sh's
+# stdin, and any command that reads stdin would otherwise swallow the rest of it
+# and the install would stop silently halfway. Needs no Homebrew and no git
+# (on a fresh Mac, git is a stub that asks to install the developer tools).
 
 REPO="${FLY_REPO:-https://github.com/tuomasharkonen-ux/FLY-transcriber}"
 LABEL="io.github.fly-transcriber"
@@ -42,6 +48,7 @@ MODEL_SHA256="5ce2bfa9a938dc132cec1172592d65173cbb8f444ea1e4133f10f9391de155be  
 9b77bcd840692710dd3496f62ecfeed8d8e5f002fd991b785079b244eab7d255  plda/plda.npz
 325f1ce8e48f7e55e9c8aa47e05d2766b7c48c4b25b8de8dd751e7a4cc5fbe8f  plda/xvec_transform.npz"
 
+main() {
 login_item=1
 warmup=1
 action=install
@@ -58,6 +65,22 @@ done
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 warn() { printf '\033[33mWarning:\033[0m %s\n' "$*" >&2; }
+
+# Called on exit while installing: a non-technical user would otherwise be left
+# at a prompt after some tool's output, with no idea whether it worked.
+interrupted() {
+  [ "$1" -eq 0 ] && return
+  printf '\n\033[31mFLY was not fully installed.\033[0m The messages above say what went wrong.\n' >&2
+  printf 'Running the same install command again picks up where it stopped.\n' >&2
+}
+
+# Prints the newest v* tag (empty if none or offline). Sorted by number, so
+# v0.10.0 beats v0.9.0.
+latest_release() {
+  curl -fsSL -m 20 "https://api.github.com/repos/${REPO#https://github.com/}/tags?per_page=100" 2>/dev/null \
+    | sed -n 's/.*"name": *"\(v[0-9][^"]*\)".*/\1/p' \
+    | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -n 1
+}
 
 # Checks every model file against MODEL_SHA256; $1 is the model directory.
 model_ok() {
@@ -109,6 +132,8 @@ fi
 
 # -- requirements ------------------------------------------------------------
 
+trap 'interrupted $?' EXIT
+
 [ "$(uname -s)" = Darwin ] || fail "macOS only."
 [ "$(uname -m)" = arm64 ] || fail "Needs an Apple Silicon Mac (M1 or later)."
 
@@ -122,12 +147,6 @@ fi
 
 # -- dependencies ------------------------------------------------------------
 
-if ! command -v ffmpeg >/dev/null 2>&1; then
-  command -v brew >/dev/null 2>&1 || fail "ffmpeg is required. Install Homebrew from https://brew.sh and re-run, or install ffmpeg another way."
-  say "Installing ffmpeg"
-  brew install ffmpeg
-fi
-
 if ! command -v uv >/dev/null 2>&1; then
   say "Installing uv"
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -138,21 +157,23 @@ say "Installing ownscribe (recording, transcription and diarization engine)"
 uv tool install --python "$PYTHON" --upgrade "$OWNSCRIBE"
 
 # The newest v* tag is the latest release. Tags only, so the speaker model's
-# own release (speaker-model-v1) is never mistaken for one.
+# own release (speaker-model-v1) is never mistaken for one. Installed from
+# GitHub's source archive rather than with git (see the top of the script).
 ref="${FLY_VERSION:-}"
 if [ -z "$ref" ]; then
-  ref="$(git ls-remote --tags --refs --sort=-v:refname "$REPO" 'v*' 2>/dev/null \
-    | head -n 1 | sed 's|.*refs/tags/||')"
+  ref="$(latest_release)"
 fi
 stop_running_app
 if [ -n "$ref" ]; then
   say "Installing FLY-transcriber $ref"
-  uv tool install --python "$PYTHON" --force "git+$REPO@$ref"
+  archive="$REPO/archive/refs/tags/$ref.tar.gz"
 else
   warn "No release found; installing the latest development version."
   say "Installing FLY-transcriber"
-  uv tool install --python "$PYTHON" --force "git+$REPO"
+  archive="$REPO/archive/refs/heads/main.tar.gz"
 fi
+uv tool install --python "$PYTHON" --force --reinstall-package fly-transcriber \
+  "fly-transcriber @ $archive"
 
 # -- models ------------------------------------------------------------------
 
@@ -217,6 +238,17 @@ else
   say "Starting the app"
   nohup "$BIN_DIR/fly-transcriber" >/dev/null 2>&1 &
 fi
+trap - EXIT
+
+# The menubar icon is easy to miss (or hidden behind the notch), so show the
+# dashboard once the app is up; --show hands that to the running instance.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -s -m 1 -o /dev/null http://127.0.0.1:8756/api/state; then
+    "$BIN_DIR/fly-transcriber" --show >/dev/null 2>&1 || true
+    break
+  fi
+  sleep 1
+done
 
 echo
 echo "Installed. Look for the FLY icon (a microphone with wings) in the menubar."
@@ -237,3 +269,6 @@ cat <<'EOF'
 To uninstall:
   curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh -s -- --uninstall
 EOF
+}
+
+main "$@"

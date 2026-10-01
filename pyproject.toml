@@ -16,6 +16,7 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
 dependencies = [
+    "imageio-ffmpeg>=0.6",
     "pyobjc-framework-cocoa>=12.2,<13",
     "pyobjc-framework-webkit>=12.2,<13",
     "tomli-w>=1.2.0",

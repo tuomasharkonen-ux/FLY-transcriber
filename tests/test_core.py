@@ -1360,3 +1360,13 @@ def test_server_refuses_foreign_host_names():
         assert _status(urllib.request.Request(base + "/api/state", headers={"Host": localhost})) == 200
     finally:
         server.shutdown()
+
+
+def test_bundled_ffmpeg_is_linked_and_runs(tmp_path):
+    from fly_transcriber.app import link_bundled_ffmpeg
+
+    link = link_bundled_ffmpeg(tmp_path / "bin")
+    assert link == tmp_path / "bin" / "ffmpeg"
+    assert link_bundled_ffmpeg(tmp_path / "bin") == link  # idempotent
+    out = subprocess.run([str(link), "-version"], capture_output=True, text=True)
+    assert out.returncode == 0 and out.stdout.startswith("ffmpeg version")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -600,12 +601,43 @@ def main() -> None:
 _TOOL_DIRS = ("~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin")
 
 
+#: Holds an ``ffmpeg`` link to the copy bundled with imageio-ffmpeg.
+_FFMPEG_DIR = Path("~/.local/share/fly-transcriber/bin").expanduser()
+
+
 def _extend_path() -> None:
     current = os.environ.get("PATH", "").split(os.pathsep)
     extra = [str(Path(d).expanduser()) for d in _TOOL_DIRS]
     missing = [d for d in extra if d not in current]
     if missing:
         os.environ["PATH"] = os.pathsep.join([*current, *missing])
+    if shutil.which("ffmpeg") is None and (bundled := link_bundled_ffmpeg(_FFMPEG_DIR)):
+        os.environ["PATH"] += os.pathsep + str(bundled.parent)
+
+
+def link_bundled_ffmpeg(directory: Path) -> Path | None:
+    """Link imageio-ffmpeg's binary as ``directory/ffmpeg``, so ownscribe finds it.
+
+    ownscribe looks ffmpeg up on PATH by name; the bundled copy is named after
+    its platform and version, and moves when the package is upgraded. Without
+    it, people would need Homebrew just for ffmpeg. Returns None if unavailable.
+    """
+    try:
+        import imageio_ffmpeg
+
+        target = Path(imageio_ffmpeg.get_ffmpeg_exe())
+    except Exception:  # noqa: BLE001 - missing package or binary
+        return None
+    link = directory / "ffmpeg"
+    try:
+        if link.is_symlink() and link.resolve() == target.resolve():
+            return link
+        directory.mkdir(parents=True, exist_ok=True)
+        link.unlink(missing_ok=True)
+        link.symlink_to(target)
+    except OSError:
+        return None
+    return link
 
 
 USAGE = """usage: fly-transcriber [--show]                start the menubar app (--show
