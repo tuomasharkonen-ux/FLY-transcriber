@@ -94,7 +94,7 @@ def snapshot():
             meeting("one-on-one", "", "26.09. 13:00", 1500, three[:2], filed=["Acme", "Globex"]),
         ],
         "projects": [project_dict(p) for p in PROJECTS],
-        "settings": {"model": "large-v3", "language": "fi", "silence_timeout": 300, "speaker_count": 0,
+        "settings": {"model": "large-v3", "language": "", "silence_timeout": 300, "speaker_count": 0,
                      "hotwords": "Acme, Globex, Kubernetes", "mic": True, "diarize": True, "keep_recording": True},
     }
 

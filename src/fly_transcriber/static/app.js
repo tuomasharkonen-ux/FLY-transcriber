@@ -632,12 +632,98 @@ const FileDialog = ({ meeting, projects, setup: initialSetup, onClose, refresh, 
 
 // -- settings ---------------------------------------------------------------
 
+/** Whisper's languages, by the code ownscribe expects. "" is auto-detect. */
+const LANGUAGES = [
+  ["", "Auto-detect"],
+  ...[
+    ["af", "Afrikaans"], ["sq", "Albanian"], ["am", "Amharic"], ["ar", "Arabic"], ["hy", "Armenian"],
+    ["as", "Assamese"], ["az", "Azerbaijani"], ["ba", "Bashkir"], ["eu", "Basque"], ["be", "Belarusian"],
+    ["bn", "Bengali"], ["bs", "Bosnian"], ["br", "Breton"], ["bg", "Bulgarian"], ["my", "Burmese"],
+    ["yue", "Cantonese"], ["ca", "Catalan"], ["zh", "Chinese"], ["hr", "Croatian"], ["cs", "Czech"],
+    ["da", "Danish"], ["nl", "Dutch"], ["en", "English"], ["et", "Estonian"], ["fo", "Faroese"],
+    ["fi", "Finnish"], ["fr", "French"], ["gl", "Galician"], ["ka", "Georgian"], ["de", "German"],
+    ["el", "Greek"], ["gu", "Gujarati"], ["ht", "Haitian Creole"], ["ha", "Hausa"], ["haw", "Hawaiian"],
+    ["he", "Hebrew"], ["hi", "Hindi"], ["hu", "Hungarian"], ["is", "Icelandic"], ["id", "Indonesian"],
+    ["it", "Italian"], ["ja", "Japanese"], ["jw", "Javanese"], ["kn", "Kannada"], ["kk", "Kazakh"],
+    ["km", "Khmer"], ["ko", "Korean"], ["lo", "Lao"], ["la", "Latin"], ["lv", "Latvian"],
+    ["ln", "Lingala"], ["lt", "Lithuanian"], ["lb", "Luxembourgish"], ["mk", "Macedonian"],
+    ["mg", "Malagasy"], ["ms", "Malay"], ["ml", "Malayalam"], ["mt", "Maltese"], ["mi", "Maori"],
+    ["mr", "Marathi"], ["mn", "Mongolian"], ["ne", "Nepali"], ["no", "Norwegian"], ["nn", "Norwegian Nynorsk"],
+    ["oc", "Occitan"], ["ps", "Pashto"], ["fa", "Persian"], ["pl", "Polish"], ["pt", "Portuguese"],
+    ["pa", "Punjabi"], ["ro", "Romanian"], ["ru", "Russian"], ["sa", "Sanskrit"], ["sr", "Serbian"],
+    ["sn", "Shona"], ["sd", "Sindhi"], ["si", "Sinhala"], ["sk", "Slovak"], ["sl", "Slovenian"],
+    ["so", "Somali"], ["es", "Spanish"], ["su", "Sundanese"], ["sw", "Swahili"], ["sv", "Swedish"],
+    ["tl", "Tagalog"], ["tg", "Tajik"], ["ta", "Tamil"], ["tt", "Tatar"], ["te", "Telugu"],
+    ["th", "Thai"], ["bo", "Tibetan"], ["tr", "Turkish"], ["tk", "Turkmen"], ["uk", "Ukrainian"],
+    ["ur", "Urdu"], ["uz", "Uzbek"], ["vi", "Vietnamese"], ["cy", "Welsh"], ["yi", "Yiddish"],
+    ["yo", "Yoruba"],
+  ],
+];
+
+const languageName = (code) => LANGUAGES.find(([c]) => c === code)?.[1] || code;
+
+/**
+ * Type to filter by name or code, pick with the mouse or arrows + Enter. Shows
+ * the chosen language's name; leaving without picking keeps the old choice.
+ */
+const LanguagePicker = ({ value, onChange }) => {
+  const [query, setQuery] = useState(null); // null = closed, showing the selection
+  const [active, setActive] = useState(0);
+  const listRef = useRef();
+  const q = (query || "").trim().toLowerCase();
+  const matches = query === null ? [] : LANGUAGES.filter(([code, name]) =>
+    !q || name.toLowerCase().includes(q) || code === q);
+
+  useEffect(() => {
+    listRef.current?.children[active]?.scrollIntoView({ block: "nearest" });
+  }, [active, query]);
+
+  const open = () => {
+    setQuery("");
+    setActive(Math.max(0, LANGUAGES.findIndex(([c]) => c === value)));
+  };
+  const pick = ([code]) => { onChange(code); setQuery(null); };
+  const onKey = (e) => {
+    if (query === null) {
+      if (e.key === "ArrowDown" || e.key === "Enter") { e.preventDefault(); open(); }
+      return;
+    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, matches.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); if (matches[active]) pick(matches[active]); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setQuery(null); }
+  };
+
+  return html`
+    <div class="combo">
+      <input class="input combo-input" role="combobox" aria-expanded=${query !== null}
+        aria-autocomplete="list" autocomplete="off" spellcheck="false"
+        value=${query ?? languageName(value)} placeholder=${languageName(value)}
+        onFocus=${open} onClick=${() => query === null && open()} onBlur=${() => setQuery(null)}
+        onInput=${(e) => { setQuery(e.currentTarget.value); setActive(0); }} onKeyDown=${onKey} />
+      ${query !== null && html`
+        <ul class="combo-list" role="listbox" ref=${listRef}>
+          ${matches.length
+            ? matches.map((lang, i) => html`
+                <li key=${lang[0]} role="option" aria-selected=${lang[0] === value}
+                  class=${`combo-option ${i === active ? "active" : ""}`}
+                  onMouseDown=${(e) => { e.preventDefault(); pick(lang); }}
+                  onClick=${(e) => e.preventDefault() /* no label activation reopening it */}
+                  onMouseEnter=${() => setActive(i)}>
+                  <span>${lang[1]}</span>
+                  ${lang[0] && html`<span class="combo-code">${lang[0]}</span>`}
+                </li>`)
+            : html`<li class="combo-empty">No matching language</li>`}
+        </ul>`}
+    </div>`;
+};
+
 const MODELS = [
   ["large-v3", "large-v3 — recommended"],
   ["medium", "medium"],
   ["small", "small"],
   ["base", "base"],
-  ["tiny", "tiny — fastest, unusable for Finnish"],
+  ["tiny", "tiny — fastest, least accurate"],
 ];
 
 const ProjectsCard = ({ projects, adding, refresh, toast }) => {
@@ -720,8 +806,8 @@ const SettingsView = ({ settings, projects, adding, refresh, toast }) => {
               ${MODELS.map(([v, l]) => html`<option key=${v} value=${v}>${l}</option>`)}
             </select>
           <//>
-          <${Field} label="Language" hint="Leave empty to auto-detect.">
-            <input class="input" value=${draft.language} placeholder="fi" onInput=${text("language")} />
+          <${Field} label="Language" hint="Setting it helps when auto-detect guesses wrong.">
+            <${LanguagePicker} value=${draft.language} onChange=${set("language")} />
           <//>
         </div>
         <${Field} label="Vocabulary hints"
