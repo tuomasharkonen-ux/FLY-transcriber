@@ -72,9 +72,11 @@ const TopBar = ({ route, run }) => {
           <${Logo} />
           <span class="brand-name">${BRAND.name}</span>
         </a>
-        <nav class="nav">
-          <a class=${`nav-item ${tab === "recordings" ? "active" : ""}`} href="#/">Recordings</a>
-          <a class=${`nav-item ${tab === "settings" ? "active" : ""}`} href="#/settings">Settings</a>
+        <nav class="nav" role="tablist">
+          <a class=${`nav-item ${tab === "recordings" ? "active" : ""}`} href="#/"
+            role="tab" aria-selected=${tab === "recordings"}><${Icon} name="mic" /> Recordings</a>
+          <a class=${`nav-item ${tab === "settings" ? "active" : ""}`} href="#/settings"
+            role="tab" aria-selected=${tab === "settings"}><${Icon} name="sliders" /> Settings</a>
         </nav>
         <${RunStatus} run=${run} />
       </div>
