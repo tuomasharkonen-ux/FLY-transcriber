@@ -34,6 +34,9 @@
   --eggshell-300: #c8c4b0;
   --eggshell-500: #9d9a8c;
 
+  /* Pure white, for when eggshell's warmth isn't wanted. */
+  --white: #ffffff;
+
   --burnt-peach-50: #fbe9e3;
   --burnt-peach-300: #ec9a84;
   --burnt-peach-500: #e07a5f;      /* burnt-peach */
@@ -67,13 +70,13 @@
   --accent: var(--burnt-peach-500);
   /* The logo is the same in both themes, so these are set once, here. */
   --logo-tile: var(--burnt-peach-500);
-  --logo-wing: var(--twilight-indigo-500);
+  --logo-wing: var(--eggshell-100);
   --logo-ink: var(--eggshell-0);
 
-  --bg: var(--eggshell-50);
+  --bg: var(--eggshell-25);
   --surface: var(--eggshell-0);
   --surface-2: var(--eggshell-25);
-  --line: var(--eggshell-100);
+  --line: var(--eggshell-50);
   --line-strong: var(--eggshell-200);
   --text: var(--ink-900);
   --text-2: var(--ink-600);
