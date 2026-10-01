@@ -70,8 +70,10 @@ The script checks your Mac meets the requirements and then:
    Xcode tools or other setup needed; the app brings its own `ffmpeg`),
 2. installs [ownscribe](https://github.com/paberr/ownscribe) (the recording and
    transcription engine) and this app as `uv` tools,
-3. downloads the speaker model (30 MB) and the speech models (about 3 GB), so
-   your first recording starts straight away,
+3. downloads the speaker model (30 MB) and the speech models (about 3 GB).
+   FLY transcribes with local AI models, which is how it stays completely
+   offline, and it needs them to work. The script asks whether to download
+   them now (recommended) or later, during your first recording,
 4. adds `FLY.app` to `/Applications` (or `~/Applications` if your account can't
    write there), and a login item so the app starts with your Mac, then starts
    it and opens the dashboard.
@@ -83,8 +85,8 @@ bring it back; opening it while it is running just shows the dashboard.
 Options go after `sh -s --`, for example `… | sh -s -- --no-login-item`:
 
 - `--no-login-item`: don't start the app at login.
-- `--no-warmup`: skip the 3 GB download for now; it then happens during your
-  first recording.
+- `--warmup` / `--no-warmup`: download the speech models now / during your
+  first recording, without asking.
 - `FLY_VERSION=v0.2.0` (an environment variable, set before `sh`): install that
   release instead of the latest one.
 

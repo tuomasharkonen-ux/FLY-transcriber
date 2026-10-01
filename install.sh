@@ -14,8 +14,10 @@
 #
 # Options:
 #   --no-login-item   don't start the app at login
-#   --no-warmup       skip the ~3 GB speech model download; it then happens
-#                     during the first recording instead
+#   --warmup          download the ~3 GB speech models now, without asking
+#   --no-warmup       download them later, during the first recording, without
+#                     asking (otherwise the script asks; with no keyboard to ask
+#                     on, it downloads now)
 #   FLY_VERSION=v0.2.0 (environment) install that release instead of the latest
 #   --uninstall       remove the app, its login item, FLY.app, models and ownscribe
 #                     (settings, recordings and transcripts are kept)
@@ -50,19 +52,22 @@ MODEL_SHA256="5ce2bfa9a938dc132cec1172592d65173cbb8f444ea1e4133f10f9391de155be  
 
 main() {
 login_item=1
-warmup=1
+warmup=ask
 action=install
 for arg in "$@"; do
   case "$arg" in
     --no-login-item) login_item=0 ;;
+    --warmup) warmup=1 ;;
     --no-warmup) warmup=0 ;;
     --uninstall) action=uninstall ;;
-    -h|--help) echo "usage: install.sh [--no-login-item] [--no-warmup] | --uninstall"; exit 0 ;;
+    -h|--help) echo "usage: install.sh [--no-login-item] [--warmup|--no-warmup] | --uninstall"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
 
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
+# A numbered step, so people new to the terminal can see how far along it is.
+step() { printf '\n\033[1m[%s/5] %s\033[0m\n' "$1" "$2"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 warn() { printf '\033[33mWarning:\033[0m %s\n' "$*" >&2; }
 
@@ -72,6 +77,38 @@ interrupted() {
   [ "$1" -eq 0 ] && return
   printf '\n\033[31mFLY was not fully installed.\033[0m The messages above say what went wrong.\n' >&2
   printf 'Running the same install command again picks up where it stopped.\n' >&2
+}
+
+# Asks whether to download the speech models now; sets warmup to 1 or 0. The
+# script itself arrives on stdin, so the answer is read from the terminal.
+ask_warmup() {
+  if ! { true </dev/tty; } 2>/dev/null; then
+    warmup=1
+    return
+  fi
+  cat <<'EOF'
+When should FLY download its speech models (about 3 GB)?
+
+  1) Now (recommended): FLY is ready to use as soon as this finishes.
+  2) Later: install the app now. The models then download during your
+     first recording, so that first transcript takes longer and needs
+     an internet connection.
+
+EOF
+  while :; do
+    printf 'Type 1 or 2 and press Return [1]: '
+    read -r answer </dev/tty || answer=1
+    case "$answer" in
+      ''|1) warmup=1; return ;;
+      2) warmup=0; return ;;
+    esac
+  done
+}
+
+# True if the default speech model is already in the HuggingFace cache (a
+# reinstall or update), so there is nothing big left to ask about.
+speech_model_cached() {
+  ls "$HOME"/.cache/huggingface/hub/models--Systran--faster-whisper-large-v3/snapshots/*/model.bin >/dev/null 2>&1
 }
 
 # Prints the newest v* tag (empty if none or offline). Sorted by number, so
@@ -145,16 +182,42 @@ if [ "$major" -lt 14 ] || { [ "$major" -eq 14 ] && [ "$minor" -lt 2 ]; }; then
   fail "Needs macOS 14.2 or later for system audio capture (you have $macos)."
 fi
 
-# -- dependencies ------------------------------------------------------------
-
-if ! command -v uv >/dev/null 2>&1; then
-  say "Installing uv"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$BIN_DIR:$PATH"
+free_gb="$(df -g "$HOME" | awk 'NR == 2 { print $4 }')"
+if [ -n "$free_gb" ] && [ "$free_gb" -lt 6 ]; then
+  warn "Only $free_gb GB of disk space is free; FLY needs about 5 GB. Free up some space if the download fails."
 fi
 
-say "Installing ownscribe (recording, transcription and diarization engine)"
-uv tool install --python "$PYTHON" --upgrade "$OWNSCRIBE"
+cat <<'EOF'
+
+Installing FLY, the Faithful Logger of Yapping.
+
+FLY records your meetings and turns them into transcripts that show who said
+what. Everything happens on this Mac: FLY uses local AI models for speech
+recognition, so your audio never leaves your computer and it works offline.
+
+Those models are big, about 3 GB to download (about 5 GB of disk space in
+all), and FLY needs them to make transcripts. They download once.
+
+The whole install takes about 5 to 20 minutes, mostly the download. You can
+keep using your Mac meanwhile, but leave this window open until it says
+"FLY is installed".
+
+EOF
+
+if speech_model_cached; then
+  warmup=1
+elif [ "$warmup" = ask ]; then
+  ask_warmup
+fi
+
+# -- dependencies ------------------------------------------------------------
+
+step 1 "Installing the tools FLY runs on (uv and ownscribe)"
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet
+  export PATH="$BIN_DIR:$PATH"
+fi
+uv tool install -q --python "$PYTHON" --upgrade "$OWNSCRIBE"
 
 # The newest v* tag is the latest release. Tags only, so the speaker model's
 # own release (speaker-model-v1) is never mistaken for one. Installed from
@@ -165,23 +228,23 @@ if [ -z "$ref" ]; then
 fi
 stop_running_app
 if [ -n "$ref" ]; then
-  say "Installing FLY-transcriber $ref"
+  step 2 "Installing the FLY app ($ref)"
   archive="$REPO/archive/refs/tags/$ref.tar.gz"
 else
+  step 2 "Installing the FLY app"
   warn "No release found; installing the latest development version."
-  say "Installing FLY-transcriber"
   archive="$REPO/archive/refs/heads/main.tar.gz"
 fi
-uv tool install --python "$PYTHON" --force --reinstall-package fly-transcriber \
+uv tool install -q --python "$PYTHON" --force --reinstall-package fly-transcriber \
   "fly-transcriber @ $archive"
 
 # -- models ------------------------------------------------------------------
 
+step 3 "Downloading the model that tells speakers apart (30 MB)"
 speaker_model=1
 if model_ok "$MODEL_DIR"; then
-  say "Speaker model already installed"
+  say "Already downloaded"
 else
-  say "Downloading the speaker model (30 MB)"
   tmp="$(mktemp -d)"
   extracted="$tmp/pyannote/speaker-diarization-community-1"
   if curl -fLsS "$MODEL_URL" -o "$tmp/model.tar.gz" \
@@ -198,14 +261,18 @@ else
 fi
 
 if [ "$warmup" -eq 1 ]; then
-  say "Downloading the speech models (about 3 GB, once; this takes a while)"
-  "$BIN_DIR/fly-transcriber" warmup \
-    || warn "Model download failed; it will be retried during the first recording."
+  step 4 "Downloading the speech models (about 3 GB; this is the long part)"
+  if ! "$BIN_DIR/fly-transcriber" warmup; then
+    warmup=0
+    warn "The speech models did not download. FLY retries during your first recording, or run the install command again."
+  fi
+else
+  step 4 "Skipping the speech models for now, as you chose"
 fi
 
 # -- FLY.app ------------------------------------------------------------------
 
-say "Adding FLY to Applications"
+step 5 "Adding FLY to your Applications and login items"
 "$BIN_DIR/fly-transcriber" install-launcher \
   || warn "Could not add FLY to Applications. The menubar app still works; start it with: fly-transcriber"
 
@@ -213,7 +280,6 @@ say "Adding FLY to Applications"
 
 unload_login_item
 if [ "$login_item" -eq 1 ]; then
-  say "Adding login item"
   mkdir -p "$(dirname "$PLIST")"
   cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -250,11 +316,24 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
 done
 
-echo
-echo "Installed. Look for the FLY icon (a microphone with wings) in the menubar."
-echo "If you quit it, open FLY again from Spotlight (Cmd-Space, type FLY)."
-echo
-echo "Your first recording asks for microphone and system audio permission."
+printf '\n\033[32m\033[1mFLY is installed.\033[0m\n'
+cat <<'EOF'
+
+- FLY lives in the menubar at the top of your screen: look for a microphone
+  with wings. Its window should have opened just now.
+- If you quit it, open it again from Spotlight: press Cmd-Space, type FLY and
+  press Return. It also starts by itself when you log in.
+- The first time you record, macOS asks to let FLY use the microphone and the
+  computer's audio. The request is shown as "python3.12": that is FLY. Click
+  Allow.
+EOF
+if [ "$warmup" -eq 0 ]; then
+  cat <<'EOF'
+- The speech models are not downloaded yet. They download during your first
+  recording, which needs an internet connection. To download them now
+  instead, run the install command again and choose 1.
+EOF
+fi
 if [ "$speaker_model" -eq 0 ]; then
   cat <<'EOF'
 
@@ -266,7 +345,9 @@ EOF
 fi
 cat <<'EOF'
 
-To uninstall:
+You can close this window now.
+
+To uninstall FLY later, run:
   curl -LsSf https://raw.githubusercontent.com/tuomasharkonen-ux/FLY-transcriber/main/install.sh | sh -s -- --uninstall
 EOF
 }
