@@ -214,36 +214,18 @@ function groupTurns(turns) {
   return blocks;
 }
 
-const Transcript = ({ detail, meeting }) => html`
-  <div class="transcript">
-    ${groupTurns(detail.turns).map((block, i) => html`
-      <div class="turn" key=${i}>
-        <${Avatar} label=${block.speaker} meeting=${meeting} />
-        <div class="turn-body">
-          <div class="turn-head">
-            <span class="turn-speaker" data-hue=${speakerHue(block.speaker, meeting.speakers)}>
-              ${speakerName(block.speaker, meeting)}
-            </span>
-            <span class="turn-time">${block.lines[0].timestamp}</span>
-          </div>
-          ${block.lines.map((line) => html`<p key=${line.start} title=${line.timestamp}>${line.text}</p>`)}
-        </div>
-      </div>`)}
-  </div>`;
-
-/** One speaker in the sidebar list: a pencil turns the name into an inline
- * field. Renames the label everywhere this meeting shows it -- in the
- * transcript, the sidebar and (next time it's saved) the filed copy -- never
- * just one line, since a diarization label is one person throughout. */
-const SpeakerListItem = ({ label, meeting, toast, refresh }) => {
+/**
+ * Shared state behind every pencil icon that renames a speaker: the sidebar
+ * list and each turn in the transcript all write to the same label, so
+ * editing from any one of them updates every line attributed to that person.
+ */
+function useSpeakerRename(meeting, label, toast, refresh) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef();
 
-  const edit = () => { setValue(speakerName(label, meeting)); setEditing(true); };
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
-
+  const start = () => { setValue(speakerName(label, meeting)); setEditing(true); };
+  const cancel = () => setEditing(false);
   const save = async () => {
     setSaving(true);
     try {
@@ -256,23 +238,70 @@ const SpeakerListItem = ({ label, meeting, toast, refresh }) => {
       setSaving(false);
     }
   };
+  const onKeyDown = (e) => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); };
 
-  if (editing) {
+  return { editing, value, setValue, saving, start, cancel, save, onKeyDown };
+}
+
+/** The speaker name at the top of one transcript block, with its own pencil:
+ * every occurrence of a person in the transcript can start the rename. */
+const TurnSpeakerLabel = ({ label, meeting, toast, refresh }) => {
+  const rename = useSpeakerRename(meeting, label, toast, refresh);
+  const inputRef = useRef();
+  useEffect(() => { if (rename.editing) inputRef.current?.select(); }, [rename.editing]);
+
+  if (rename.editing) {
+    return html`
+      <span class="turn-speaker-group">
+        <input class="input input-sm" ref=${inputRef} value=${rename.value} disabled=${rename.saving}
+          onInput=${(e) => rename.setValue(e.currentTarget.value)} onKeyDown=${rename.onKeyDown} />
+        <${IconButton} icon="check" label="Save name" disabled=${rename.saving} onClick=${rename.save} />
+        <${IconButton} icon="close" label="Cancel" disabled=${rename.saving} onClick=${rename.cancel} />
+      </span>`;
+  }
+  return html`
+    <span class="turn-speaker-group">
+      <span class="turn-speaker" data-hue=${speakerHue(label, meeting.speakers)}>${speakerName(label, meeting)}</span>
+      <${IconButton} icon="pencil" label="Rename speaker" onClick=${rename.start} />
+    </span>`;
+};
+
+const Transcript = ({ detail, meeting, toast, refresh }) => html`
+  <div class="transcript">
+    ${groupTurns(detail.turns).map((block, i) => html`
+      <div class="turn" key=${i}>
+        <${Avatar} label=${block.speaker} meeting=${meeting} />
+        <div class="turn-body">
+          <div class="turn-head">
+            <${TurnSpeakerLabel} label=${block.speaker} meeting=${meeting} toast=${toast} refresh=${refresh} />
+            <span class="turn-time">${block.lines[0].timestamp}</span>
+          </div>
+          ${block.lines.map((line) => html`<p key=${line.start} title=${line.timestamp}>${line.text}</p>`)}
+        </div>
+      </div>`)}
+  </div>`;
+
+/** One speaker in the sidebar list: a pencil turns the name into an inline field. */
+const SpeakerListItem = ({ label, meeting, toast, refresh }) => {
+  const rename = useSpeakerRename(meeting, label, toast, refresh);
+  const inputRef = useRef();
+  useEffect(() => { if (rename.editing) inputRef.current?.select(); }, [rename.editing]);
+
+  if (rename.editing) {
     return html`
       <li>
         <${Avatar} label=${label} meeting=${meeting} />
-        <input class="input input-sm" ref=${inputRef} value=${value} disabled=${saving}
-          onInput=${(e) => setValue(e.currentTarget.value)}
-          onKeyDown=${(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }} />
-        <${IconButton} icon="check" label="Save name" disabled=${saving} onClick=${save} />
-        <${IconButton} icon="close" label="Cancel" disabled=${saving} onClick=${() => setEditing(false)} />
+        <input class="input input-sm" ref=${inputRef} value=${rename.value} disabled=${rename.saving}
+          onInput=${(e) => rename.setValue(e.currentTarget.value)} onKeyDown=${rename.onKeyDown} />
+        <${IconButton} icon="check" label="Save name" disabled=${rename.saving} onClick=${rename.save} />
+        <${IconButton} icon="close" label="Cancel" disabled=${rename.saving} onClick=${rename.cancel} />
       </li>`;
   }
   return html`
     <li>
       <${Avatar} label=${label} meeting=${meeting} />
-      <span>${speakerName(label, meeting)}</span>
-      <${IconButton} icon="pencil" label="Rename speaker" onClick=${edit} />
+      <span class="speaker-name">${speakerName(label, meeting)}</span>
+      <${IconButton} icon="pencil" label="Rename speaker" onClick=${rename.start} />
     </li>`;
 };
 
@@ -321,7 +350,7 @@ const RecordingView = ({ meeting, onFile, toast, refresh }) => {
               : error
                 ? html`<div class="error-text">${error}</div>`
                 : detail
-                  ? html`<${Transcript} detail=${detail} meeting=${meeting} />`
+                  ? html`<${Transcript} detail=${detail} meeting=${meeting} toast=${toast} refresh=${refresh} />`
                   : html`<div class="loading">Loading transcript…</div>`}
         </div>
 

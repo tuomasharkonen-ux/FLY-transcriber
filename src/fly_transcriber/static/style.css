@@ -363,16 +363,20 @@ main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 24p
 .transcript { display: grid; }
 .turn { display: grid; grid-template-columns: 28px 1fr; gap: 14px; padding: 16px 0; }
 .turn + .turn { border-top: 1px solid var(--line); }
-.turn-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.turn-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
 .turn-speaker { font-weight: 600; color: var(--hue, var(--text-2)); }
 .turn-time { font: 12px var(--mono); color: var(--text-3); }
 .turn-body p { line-height: 1.6; }
 .turn-body p + p { margin-top: 6px; }
+.turn-speaker-group { display: inline-flex; align-items: center; gap: 2px; }
+.turn-speaker-group .btn-icon { width: 22px; height: 22px; opacity: 0.5; }
+.turn-speaker-group .btn-icon:hover { opacity: 1; }
+.turn-speaker-group .input-sm { height: 24px; width: 160px; padding: 2px 8px; }
 
 .speaker-list { display: grid; gap: 8px; }
 .speaker-list li { display: flex; align-items: center; gap: 10px; font-weight: 500; }
-.speaker-list li > span, .speaker-list li > input { flex: 1; min-width: 0; }
-.speaker-list li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.speaker-list li > input, .speaker-list .speaker-name { flex: 1; min-width: 0; }
+.speaker-list .speaker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .speaker-list .btn-icon { flex: none; }
 
 .filed-list { display: grid; gap: 8px; }
