@@ -83,9 +83,18 @@ def record():
     return {"ok": True}
 
 
+def check_update():
+    return {"current": "0.6.2", "latest": "0.6.3", "available": True}
+
+
+def apply_update():
+    return {"ok": True}
+
+
 def snapshot():
     three = ["SPEAKER_00", "SPEAKER_01", "SPEAKER_02"]
     return {
+        "version": "0.6.2",
         "run": run_summary(),
         "meetings": [
             meeting("in-progress", "", "29.09. 10:00", 0, [], processing=True, transcript=False),
@@ -117,6 +126,16 @@ def dismiss(name):
     return {"ok": True}
 
 
+def rename_speaker(name, speaker, new_name):
+    names = {**STATE.get(name, {}).get("speaker_names", {})}
+    if new_name.strip():
+        names[speaker] = new_name.strip()
+    else:
+        names.pop(speaker, None)
+    STATE[name] = {**STATE.get(name, {}), "speaker_names": names}
+    return {"speaker_names": names}
+
+
 if __name__ == "__main__":
     api = Api(snapshot=snapshot, file_meeting=file_meeting, save_settings=lambda p: {"ok": True},
               forget=lambda n: {"ok": True}, meeting_detail=detail, reveal=lambda n: {"ok": True},
@@ -125,6 +144,7 @@ if __name__ == "__main__":
               add_project=add_project, remove_project=remove_project,
               reveal_project=lambda n: {"ok": True},
               # No native picker here: pretend the user chose ~/Documents.
-              choose_folder=lambda p: {"path": "~/Documents"})
+              choose_folder=lambda p: {"path": "~/Documents"},
+              check_update=check_update, apply_update=apply_update, rename_speaker=rename_speaker)
     print(f"http://127.0.0.1:{PORT}/")
     make_server(api, PORT).serve_forever()

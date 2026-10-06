@@ -1285,6 +1285,9 @@ def _stub_api(**overrides):
         forget=overrides.get("forget", forget),
         show=overrides.get("show"),
         delete=overrides.get("delete"),
+        check_update=overrides.get("check_update"),
+        apply_update=overrides.get("apply_update"),
+        rename_speaker=overrides.get("rename_speaker"),
     )
     return api, calls
 
@@ -1367,6 +1370,45 @@ def test_server_routes_project_requests():
             urllib.request.urlopen(req).read()
         assert calls["plan"] == {"name": "Acme"}
         assert calls["remove"] == "Acme"
+    finally:
+        server.shutdown()
+
+
+def test_server_routes_update_requests():
+    api, calls = _stub_api()
+    api.check_update = lambda: {"current": "0.6.2", "latest": "0.6.3", "available": True}
+    api.apply_update = lambda: calls.setdefault("apply", True) and {"ok": True}
+    base, server = _client(api)
+    try:
+        req = urllib.request.Request(
+            base + "/api/update/check", data=b"{}", headers={"Content-Type": "application/json"}
+        )
+        assert json.loads(urllib.request.urlopen(req).read()) == {
+            "current": "0.6.2", "latest": "0.6.3", "available": True,
+        }
+        req = urllib.request.Request(
+            base + "/api/update/apply", data=b"{}", headers={"Content-Type": "application/json"}
+        )
+        assert json.loads(urllib.request.urlopen(req).read()) == {"ok": True}
+        assert calls["apply"] is True
+    finally:
+        server.shutdown()
+
+
+def test_server_routes_rename_speaker_requests():
+    api, calls = _stub_api()
+    api.rename_speaker = lambda meeting, speaker, name: (
+        calls.setdefault("rename", (meeting, speaker, name)) and {"speaker_names": {speaker: name}}
+    )
+    base, server = _client(api)
+    try:
+        req = urllib.request.Request(
+            base + "/api/speaker-name",
+            data=json.dumps({"meeting": "m1", "speaker": "SPEAKER_00", "name": "Sam"}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert json.loads(urllib.request.urlopen(req).read()) == {"speaker_names": {"SPEAKER_00": "Sam"}}
+        assert calls["rename"] == ("m1", "SPEAKER_00", "Sam")
     finally:
         server.shutdown()
 
@@ -1723,6 +1765,71 @@ def test_bundled_ffmpeg_is_linked_and_runs(tmp_path):
     assert link_bundled_ffmpeg(tmp_path / "bin") == link  # idempotent
     out = subprocess.run([str(link), "-version"], capture_output=True, text=True)
     assert out.returncode == 0 and out.stdout.startswith("ffmpeg version")
+
+
+def test_version_tuple_parses_and_rejects():
+    from fly_transcriber.app import _version_tuple
+
+    assert _version_tuple("v0.10.0") > _version_tuple("v0.9.0")  # numeric, not lexical
+    assert _version_tuple("0.6.2") == (0, 6, 2)
+    assert _version_tuple("main") == ()
+    assert _version_tuple("dev") == ()
+
+
+def test_latest_release_tag_prefers_newest_numeric_tag(monkeypatch):
+    from fly_transcriber import app as app_module
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return json.dumps(self._payload).encode()
+
+    tags = [{"name": "speaker-model-v1"}, {"name": "v0.6.2"}, {"name": "v0.10.0"}, {"name": "v0.9.0"}]
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", lambda *a, **k: FakeResponse(tags))
+    assert app_module.latest_release_tag() == "v0.10.0"
+
+
+def test_latest_release_tag_falls_back_to_releases_latest(monkeypatch):
+    from fly_transcriber import app as app_module
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return json.dumps(self._payload).encode()
+
+    def fake_urlopen(request, timeout=None):
+        if "tags" in request.full_url:
+            raise OSError("rate limited")
+        return FakeResponse({"tag_name": "v0.7.0"})
+
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", fake_urlopen)
+    assert app_module.latest_release_tag() == "v0.7.0"
+
+
+def test_latest_release_tag_none_when_unreachable(monkeypatch):
+    from fly_transcriber import app as app_module
+
+    def fake_urlopen(*_args, **_kwargs):
+        raise OSError("offline")
+
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", fake_urlopen)
+    assert app_module.latest_release_tag() is None
 
 
 # -- hardening -----------------------------------------------------------------

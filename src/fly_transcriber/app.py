@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -46,6 +50,51 @@ def app_version() -> str:
         return version("fly-transcriber")
     except PackageNotFoundError:  # running from a checkout that was never installed
         return "dev"
+
+
+#: Matches install.sh's REPO; raw.githubusercontent.com lets install.sh run
+#: without git (a fresh Mac's stub prompts to install developer tools).
+UPDATE_REPO = "tuomasharkonen-ux/FLY-transcriber"
+UPDATE_INSTALL_URL = f"https://raw.githubusercontent.com/{UPDATE_REPO}/main/install.sh"
+UPDATE_LOG = Path("~/.local/share/fly-transcriber/update.log").expanduser()
+
+
+def _version_tuple(text: str) -> tuple[int, ...]:
+    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", text.strip())
+    return tuple(int(g) for g in match.groups()) if match else ()
+
+
+def latest_release_tag(timeout: float = 10.0) -> str | None:
+    """The newest ``v*`` release tag on GitHub, or ``None`` if it can't be found.
+
+    Mirrors install.sh's ``latest_release``: tags first (sorted by number, so
+    v0.10.0 beats v0.9.0, and the speaker model's own ``speaker-model-v1`` tag
+    is never mistaken for a release), then the release GitHub marks as latest,
+    in case the tags lookup used up the shared rate limit.
+    """
+    try:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{UPDATE_REPO}/tags?per_page=100",
+            headers={"Accept": "application/vnd.github+json"},
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            tags = json.load(response)
+        versions = [(_version_tuple(t["name"]), t["name"]) for t in tags]
+        versions = [v for v in versions if v[0]]
+        if versions:
+            return max(versions)[1]
+    except (OSError, ValueError, TypeError, KeyError):
+        pass
+    try:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest",
+            headers={"Accept": "application/vnd.github+json"},
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            tag = json.load(response).get("tag_name")
+        return tag if _version_tuple(tag or "") else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _fmt_duration(seconds: int) -> str:
@@ -229,6 +278,9 @@ class MeetingRecorderApp:
             remove_project=self._api_remove_project,
             reveal_project=self._api_reveal_project,
             choose_folder=self._api_choose_folder,
+            check_update=self._api_check_update,
+            apply_update=self._api_apply_update,
+            rename_speaker=self._api_rename_speaker,
         )
         try:
             return serve_in_background(api)
@@ -391,6 +443,27 @@ class MeetingRecorderApp:
             "markdown": render_turns(turns, entry.speaker_names),
         }
 
+    def _api_rename_speaker(self, name: str, speaker: str, new_name: str) -> dict:
+        """Rename one diarization label, from the transcript view's pencil icon.
+
+        Writes straight to the ledger, same field the save form's "Who is who"
+        edits -- so it carries over there, but (like that form) only reaches
+        the saved copy the next time this meeting is filed.
+        """
+        meeting = parse_meeting_dir(self._meeting_directory(name))
+        entry = meeting_state.get(name)
+        known = set(speakers(merge_speakers(meeting.turns, entry.speaker_merges)))
+        if speaker not in known:
+            raise ValueError(f"Unknown speaker {speaker!r}")
+        names = dict(entry.speaker_names)
+        new_name = new_name.strip()
+        if new_name:
+            names[speaker] = new_name
+        else:
+            names.pop(speaker, None)
+        meeting_state.update(name, speaker_names=names)
+        return {"speaker_names": names}
+
     def _api_show(self) -> dict:
         """A second launch asks the running instance to come forward."""
         call_on_main(self._show_dashboard)
@@ -474,6 +547,37 @@ class MeetingRecorderApp:
         """Start or stop from the popover. Starting may show alerts, so it runs
         on the main thread rather than this server thread."""
         call_on_main(self.toggle_recording)
+        return {"ok": True}
+
+    def _api_check_update(self) -> dict:
+        current = app_version()
+        latest = latest_release_tag()
+        if latest is None:
+            return {
+                "current": current, "latest": None, "available": False,
+                "error": "Could not reach GitHub to check for updates.",
+            }
+        latest_number = latest.lstrip("v")
+        available = current != "dev" and _version_tuple(latest) > _version_tuple(current)
+        return {"current": current, "latest": latest_number, "available": available}
+
+    def _api_apply_update(self) -> dict:
+        """Hand off to install.sh, the same script a fresh install runs.
+
+        Re-running it is the supported update path: it stops this app, installs
+        the newest release and relaunches -- so this spawns it detached (it
+        outlives this process once install.sh stops it) and returns right away.
+        """
+        run = self.recorder.state
+        if run.is_active:
+            raise ValueError("Let the current recording finish before updating.")
+        UPDATE_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with UPDATE_LOG.open("ab") as log:
+            subprocess.Popen(
+                ["/bin/sh", "-c", f"curl -fsSL {UPDATE_INSTALL_URL} | sh"],
+                stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
         return {"ok": True}
 
     # -- checks --------------------------------------------------------------

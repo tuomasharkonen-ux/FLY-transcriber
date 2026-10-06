@@ -231,7 +231,52 @@ const Transcript = ({ detail, meeting }) => html`
       </div>`)}
   </div>`;
 
-const RecordingView = ({ meeting, onFile, toast }) => {
+/** One speaker in the sidebar list: a pencil turns the name into an inline
+ * field. Renames the label everywhere this meeting shows it -- in the
+ * transcript, the sidebar and (next time it's saved) the filed copy -- never
+ * just one line, since a diarization label is one person throughout. */
+const SpeakerListItem = ({ label, meeting, toast, refresh }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef();
+
+  const edit = () => { setValue(speakerName(label, meeting)); setEditing(true); };
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/speaker-name", { meeting: meeting.name, speaker: label, name: value });
+      await refresh();
+      setEditing(false);
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return html`
+      <li>
+        <${Avatar} label=${label} meeting=${meeting} />
+        <input class="input input-sm" ref=${inputRef} value=${value} disabled=${saving}
+          onInput=${(e) => setValue(e.currentTarget.value)}
+          onKeyDown=${(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }} />
+        <${IconButton} icon="check" label="Save name" disabled=${saving} onClick=${save} />
+        <${IconButton} icon="close" label="Cancel" disabled=${saving} onClick=${() => setEditing(false)} />
+      </li>`;
+  }
+  return html`
+    <li>
+      <${Avatar} label=${label} meeting=${meeting} />
+      <span>${speakerName(label, meeting)}</span>
+      <${IconButton} icon="pencil" label="Rename speaker" onClick=${edit} />
+    </li>`;
+};
+
+const RecordingView = ({ meeting, onFile, toast, refresh }) => {
   const [detail, error] = useDetail(meeting);
   const [deleting, setDeleting] = useState(false);
   if (!meeting) {
@@ -286,10 +331,7 @@ const RecordingView = ({ meeting, onFile, toast }) => {
             ${meeting.speakers.length
               ? html`<ul class="speaker-list">
                   ${meeting.speakers.map((label) => html`
-                    <li key=${label}>
-                      <${Avatar} label=${label} meeting=${meeting} />
-                      <span>${speakerName(label, meeting)}</span>
-                    </li>`)}
+                    <${SpeakerListItem} key=${label} label=${label} meeting=${meeting} toast=${toast} refresh=${refresh} />`)}
                 </ul>`
               : html`<p class="subtle">No speaker labels.</p>`}
           </div>
@@ -760,7 +802,98 @@ const ProjectsCard = ({ projects, adding, refresh, toast }) => {
     </div>`;
 };
 
-const SettingsView = ({ settings, projects, adding, refresh, toast }) => {
+const UpdateDialog = ({ latest, onClose, onApplied }) => {
+  const ref = useRef();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { ref.current.showModal(); }, []);
+
+  const update = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/update/apply", {});
+      onApplied();
+      ref.current.close();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  return html`
+    <dialog class="dialog dialog-narrow" ref=${ref} onClose=${onClose}
+      onClick=${(e) => e.target === ref.current && ref.current.close()}>
+      <div class="dialog-body">
+        <div class="dialog-head">
+          <h2>Update to v${latest}?</h2>
+        </div>
+        <p>
+          FLY will quit and reopen on its own once the update is installed.
+          This can take a minute or two — keep the internet connection on and
+          don't start a recording until it's back.
+        </p>
+        ${error && html`<div class="error-text">${error}</div>`}
+        <div class="dialog-foot">
+          <${Button} onClick=${() => ref.current.close()}>Cancel<//>
+          <${Button} variant="primary" disabled=${busy} onClick=${update}>${busy ? "Updating…" : "Update"}<//>
+        </div>
+      </div>
+    </dialog>`;
+};
+
+const UpdateCard = ({ version, toast }) => {
+  const [checking, setChecking] = useState(false);
+  const [info, setInfo] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  // The running version at the moment the update was triggered; once the app
+  // comes back on a different version, the update is done.
+  const [applied, setApplied] = useState(null);
+
+  useEffect(() => {
+    if (applied && version && version !== applied) {
+      toast(`Updated to v${version}`);
+      setApplied(null);
+      setInfo(null);
+    }
+  }, [version]);
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      setInfo(await api("/api/update/check", {}));
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return html`
+    <div class="card section">
+      <div class="section-head">
+        <div>
+          <h2>Updates</h2>
+          <p class="subtle">Running v${version || "dev"}</p>
+        </div>
+        ${!applied && html`
+          ${info?.available
+            ? html`<${Button} variant="primary" onClick=${() => setConfirming(true)}>Update to v${info.latest}<//>`
+            : html`<${Button} icon="refresh" onClick=${check} disabled=${checking}>
+                ${checking ? "Checking…" : "Check for updates"}<//>`}`}
+      </div>
+      ${applied && html`<p class="subtle">
+        Updating in the background — FLY will quit and reopen on its own. This can take a few minutes.
+      </p>`}
+      ${!applied && info && !info.available && !info.error && html`<p class="subtle">You're up to date.</p>`}
+      ${!applied && info?.error && html`<div class="error-text">${info.error}</div>`}
+      ${confirming && html`<${UpdateDialog} latest=${info.latest}
+        onApplied=${() => setApplied(version)} onClose=${() => setConfirming(false)} />`}
+    </div>`;
+};
+
+const SettingsView = ({ settings, projects, adding, refresh, toast, version }) => {
   const [draft, setDraft] = useState(settings);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -838,6 +971,8 @@ const SettingsView = ({ settings, projects, adding, refresh, toast }) => {
 
       <${ProjectsCard} projects=${projects} adding=${adding} refresh=${refresh} toast=${toast} />
 
+      <${UpdateCard} version=${version} toast=${toast} />
+
       <div class=${`savebar ${dirty ? "visible" : ""}`}>
         <span>Unsaved changes</span>
         <${Button} onClick=${() => { setDraft(settings); setDirty(false); }}>Discard<//>
@@ -907,9 +1042,9 @@ function App() {
   if (!state) page = html`<div class="loading page">Loading…</div>`;
   else if (route.view === "settings") {
     page = html`<${SettingsView} settings=${state.settings} projects=${projects}
-      adding=${route.adding} refresh=${refresh} toast=${toast} />`;
+      adding=${route.adding} refresh=${refresh} toast=${toast} version=${state.version} />`;
   }
-  else if (route.view === "recording") page = html`<${RecordingView} meeting=${byName[route.name]} onFile=${(m) => setFiling(m.name)} toast=${toast} />`;
+  else if (route.view === "recording") page = html`<${RecordingView} meeting=${byName[route.name]} onFile=${(m) => setFiling(m.name)} toast=${toast} refresh=${refresh} />`;
   else page = html`<${RecordingsView} meetings=${meetings} onFile=${(m) => setFiling(m.name)} toast=${toast} />`;
 
   return html`

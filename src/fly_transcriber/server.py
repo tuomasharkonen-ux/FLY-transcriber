@@ -59,6 +59,9 @@ class Api:
         remove_project: Callable[[str], dict] | None = None,
         reveal_project: Callable[[str], dict] | None = None,
         choose_folder: Callable[[dict], dict] | None = None,
+        check_update: Callable[[], dict] | None = None,
+        apply_update: Callable[[], dict] | None = None,
+        rename_speaker: Callable[[str, str, str], dict] | None = None,
     ) -> None:
         self.snapshot = snapshot
         self.file_meeting = file_meeting
@@ -75,6 +78,9 @@ class Api:
         self.remove_project = remove_project or _unsupported
         self.reveal_project = reveal_project or _unsupported
         self.choose_folder = choose_folder or _unsupported
+        self.check_update = check_update or _unsupported
+        self.apply_update = apply_update or _unsupported
+        self.rename_speaker = rename_speaker or _unsupported
 
 
 def _unsupported(*_args) -> dict:
@@ -208,6 +214,14 @@ class _Handler(BaseHTTPRequestHandler):
                 result = self.api.reveal_project(payload.get("name", ""))
             elif path == "/api/choose-folder":
                 result = self.api.choose_folder(payload)
+            elif path == "/api/update/check":
+                result = self.api.check_update()
+            elif path == "/api/update/apply":
+                result = self.api.apply_update()
+            elif path == "/api/speaker-name":
+                result = self.api.rename_speaker(
+                    payload.get("meeting", ""), payload.get("speaker", ""), payload.get("name", ""),
+                )
             else:
                 self._json({"error": "not found"}, 404)
                 return
