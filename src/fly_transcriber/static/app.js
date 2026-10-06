@@ -63,7 +63,28 @@ const RunStatus = ({ run }) => html`
     <${RunBar} progress=${run.progress} />
   </div>`;
 
-const TopBar = ({ route, run }) => {
+// Start/stop in the top bar: the status pill becomes the button whenever the
+// app can take one, and stays a plain status while processing.
+const RecordButton = ({ run, onToggle }) => {
+  const live = run.css === "recording";
+  return html`
+    <button type="button" class=${`run run-button ${live ? "run-recording" : "run-start"}`} onClick=${onToggle}
+      title=${live ? "Stop recording and start transcribing" : "Start recording"}>
+      <span class="run-dot"></span>
+      <span class="run-label">${live ? "Stop" : "Start recording"}</span>
+      ${live && html`<span class="run-elapsed">${run.elapsed}</span>`}
+    </button>`;
+};
+
+const RunControl = ({ run, onToggle }) => {
+  if (run.offline || run.css === "busy") return html`<${RunStatus} run=${run} />`;
+  if (run.css === "failed") {
+    return html`<div class="run-group"><${RunStatus} run=${run} /><${RecordButton} run=${run} onToggle=${onToggle} /></div>`;
+  }
+  return html`<${RecordButton} run=${run} onToggle=${onToggle} />`;
+};
+
+const TopBar = ({ route, run, onToggle }) => {
   const tab = route.view === "settings" ? "settings" : "recordings";
   return html`
     <header class="topbar">
@@ -78,7 +99,7 @@ const TopBar = ({ route, run }) => {
           <a class=${`nav-item ${tab === "settings" ? "active" : ""}`} href="#/settings"
             role="tab" aria-selected=${tab === "settings"}><${Icon} name="sliders" /> Settings</a>
         </nav>
-        <${RunStatus} run=${run} />
+        <${RunControl} run=${run} onToggle=${onToggle} />
       </div>
     </header>`;
 };
@@ -170,7 +191,7 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
           <p class="subtle">
             ${meetings.length
               ? unfiled ? `${unfiled} waiting to be saved` : "Everything is saved"
-              : "Start a recording from the FLY icon in the menubar"}
+              : "Start a recording from the top right, or from the FLY icon in the menubar"}
           </p>
         </div>
       </div>
@@ -179,7 +200,7 @@ const RecordingsView = ({ meetings, onFile, toast }) => {
             ${meetings.map((m) => html`<${RecordingRow} key=${m.name} meeting=${m} onFile=${onFile} onDelete=${setDeleting} />`)}
           </ul>`
         : html`<${Empty} title="No recordings yet">
-            Click the FLY icon in the menubar to start one. Finished transcripts show up here.
+            Click Start recording at the top right, or the FLY icon in the menubar. Finished transcripts show up here.
           <//>`}
       ${deleting && html`<${DeleteDialog} meeting=${deleting} toast=${toast} onClose=${() => setDeleting(null)} />`}
     </section>`;
@@ -1012,7 +1033,7 @@ const SettingsView = ({ settings, projects, adding, refresh, toast, version }) =
 
 // -- app --------------------------------------------------------------------
 
-const DISCONNECTED = { css: "failed", label: "Disconnected", detail: "Is the app running?" };
+const DISCONNECTED = { css: "failed", label: "Disconnected", detail: "Is the app running?", offline: true };
 
 function App() {
   const route = useHashRoute();
@@ -1030,6 +1051,8 @@ function App() {
       setRun(DISCONNECTED);
     }
   };
+
+  const toggleRecording = () => api("/api/record", {}).then(refresh).catch((e) => toast(e.message, "error"));
 
   useEffect(() => {
     let timer;
@@ -1077,7 +1100,7 @@ function App() {
   else page = html`<${RecordingsView} meetings=${meetings} onFile=${(m) => setFiling(m.name)} toast=${toast} />`;
 
   return html`
-    <${TopBar} route=${route} run=${run} />
+    <${TopBar} route=${route} run=${run} onToggle=${toggleRecording} />
     <main>${page}</main>
     <${Footer} version=${state?.version} />
     ${filingMeeting && html`<${FileDialog} key=${`${filing}/${setup}`} meeting=${filingMeeting}

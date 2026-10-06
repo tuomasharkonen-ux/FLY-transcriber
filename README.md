@@ -106,8 +106,8 @@ is FLY.
 
 ## Using it
 
-1. Click the FLY icon and **Start recording**. The icon turns red and shows a
-   timer.
+1. Click the FLY icon and **Start recording** (the dashboard has the same
+   button at the top right). The icon turns red and shows a timer.
 2. **Stop recording** when the meeting ends. Processing starts on its own and
    the panel shows its progress.
 3. When it's done, open the panel and click the recording marked **Save**. Add

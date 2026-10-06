@@ -232,6 +232,16 @@ main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 24p
 .run-failed .run-dot { background: var(--danger); }
 .run-idle .run-dot { background: var(--ok); }
 
+.run-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.run-button { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.run-button:focus-visible { outline: none; box-shadow: var(--focus); }
+.run-start { color: var(--text); }
+.run-start .run-dot { background: var(--danger); }
+.run-start:hover { background: var(--danger-soft); border-color: transparent; }
+.run-button.run-recording .run-dot { border-radius: 2px; animation: none; }
+.run-button.run-recording:hover { background: color-mix(in srgb, var(--danger-soft) 70%, var(--danger)); }
+.run-elapsed { font-weight: 500; }
+
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* -- page scaffolding ------------------------------------------------------ */

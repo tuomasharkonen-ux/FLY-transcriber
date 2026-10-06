@@ -14,8 +14,9 @@ from fly_transcriber.server import Api, make_server
 
 PORT = int(os.environ.get("PORT", 8757))
 
-#: The fake run: processing by default; the record button toggles a recording.
-RUN = {"started": None}
+#: The fake run: processing at first, then idle; the record button starts a
+#: recording, and stopping it processes for a few seconds, as the app would.
+RUN = {"started": None, "stopped": time.time()}
 
 TURNS = [
     ("SPEAKER_00", 3, "Onko teillä jo ne testitunnukset?"),
@@ -72,6 +73,8 @@ def remove_project(name):
 
 def run_summary():
     if RUN["started"] is None:
+        if time.time() - RUN["stopped"] > 8:
+            return {"css": "idle", "label": "Idle", "detail": "", "elapsed": ""}
         return {"css": "busy", "label": "Diarizing", "detail": "42:10 captured", "elapsed": "42:10", "progress": 0.6}
     s = int(time.time() - RUN["started"])
     return {"css": "recording", "label": f"Recording — {s // 60}:{s % 60:02d}", "detail": "",
@@ -79,7 +82,10 @@ def run_summary():
 
 
 def record():
-    RUN["started"] = None if RUN["started"] else time.time()
+    if RUN["started"] is None:
+        RUN["started"] = time.time()
+    else:
+        RUN["started"], RUN["stopped"] = None, time.time()
     return {"ok": True}
 
 
