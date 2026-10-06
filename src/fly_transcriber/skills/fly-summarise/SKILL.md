@@ -1,6 +1,6 @@
 ---
 name: fly-summarise
-description: Summarise a raw FLY meeting transcript from the meeting inbox (status: raw) into a meeting note, after checking the speaker diarization and the domain terms. Use when asked to process the meeting inbox or a transcript file.
+description: Summarise a raw FLY meeting transcript from the meeting inbox (status: raw) into a meeting note, after checking the speaker diarization and the project-specific terms. Use when asked to process the meeting inbox or a transcript file.
 ---
 
 # Meeting transcript → note
@@ -40,7 +40,36 @@ Reassign only on evidence like this, never on a hunch or because it would read m
 smoothly. If the evidence is not clear, attribute to both ("Alex / Sam") or to nobody
 ("it was agreed that…"). A missing name is recoverable. A wrong name in the notes is not.
 
-## Pass 2: write the note
+## Pass 2: settle the terms
+
+Speech recognition garbles names, jargon and acronyms into plausible-looking words,
+and the transcriber was given no vocabulary, so this pass is the only place they get
+corrected. Do it before writing, so the note is built from corrected text.
+
+Read the whole transcript once for words that do not belong, then gather the project's
+own vocabulary: the glossary or dictionary file if it has one, `participants:`, earlier
+meeting notes, and the project's documents (product, customer, system and team names).
+For each suspect word or phrase, check it against the text and that vocabulary:
+
+- Does it sound like a known term? Whisper writes what it hears: "Power Way" for
+  "Power BI", "Jira" as "gear", a product name as two common words.
+- Does the topic fit? A word that makes no sense in the sentence, but a known term
+  would, is a candidate. A word that already makes sense is probably right.
+- Is it consistent? The same term spelled three ways across the meeting is one term,
+  and one spelling should win. Once settled, fix every occurrence.
+- Acronyms and numbers: expand or correct them only when the project's documents
+  settle it. Never guess a figure, a date or a version number.
+- Names of people, customers and products: check the spelling against `participants:`
+  and earlier notes.
+
+Fix a term only when the evidence makes the intended word clear. Otherwise keep the
+transcribed word and mark it `[unclear: "…"]`. A flagged word is recoverable; a
+confident wrong "correction" is not. If a genuinely new term comes up, propose it and
+a definition to the user. Don't add it to the glossary yourself. List every fix and
+flag in the attribution review (`[15:12] "Power Way" → "Power BI"`) so a human can
+check it against the audio.
+
+## Pass 3: write the note
 
 Where `CLAUDE.md` or existing notes define a template, filename scheme, folder or task
 format, follow it. The defaults below apply only where the project has none.
@@ -65,17 +94,8 @@ format, follow it. The defaults below apply only where the project has none.
 - **Links:** if the project uses wiki links (`[[note-name]]`), link related existing
   notes (projects, earlier meetings on the same topic). Never link to notes that
   don't exist.
-- **Domain terms:** speech recognition garbles names and jargon into plausible-looking
-  words, and the transcriber was given no vocabulary, so this is the only place they
-  get corrected. Check the project's glossary or dictionary file if it has one, the
-  people in `participants:`, earlier meeting notes and the project's own documents
-  for the right spelling. Fix a term only when that makes the intended word clear,
-  and flag the rest as `[unclear: "…"]`. List each fix in the attribution review
-  (`[15:12] "Power Way" → "Power BI"`) so a human can check it. If a genuinely new
-  term comes up, propose it and a definition to the user; don't add it to the
-  glossary yourself.
 
-## Pass 3: insights and decisions
+## Pass 4: insights and decisions
 
 If the project keeps collections such as a decision log or research insights, scan
 the finished note for candidates, check them against existing entries for duplicates,
