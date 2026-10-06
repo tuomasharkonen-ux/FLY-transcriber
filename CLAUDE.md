@@ -14,6 +14,7 @@ uv run fly-transcriber install-launcher      # FLY.app into /Applications, else 
 uv run fly-transcriber warmup                # apply ownscribe config, prefetch Whisper models (installer runs this)
 sh scripts/package_speaker_model.sh          # build dist/speaker-diarization-community-1.tar.gz from your HF cache
 uv run --with playwright python scripts/make_demo_gif.py  # re-render docs/demo.gif from the popover UI (Chrome + ffmpeg)
+uv run --with playwright python scripts/make_promo_gif.py # docs/promo.gif: the deck's title animation alone, for promotion
 sh -n install.sh                             # syntax-check the installer (it installs for real; don't run it casually)
 ```
 
