@@ -85,7 +85,7 @@ class Meeting:
 
 
 def speaker_samples(meeting: "Meeting", max_chars: int = 90) -> dict[str, str]:
-    """First thing each speaker says, as a hint for naming them.
+    """Each speaker's longest turn, as a hint for naming them.
 
     Speaker identity cannot be known until after diarization, so this is what
     makes a post-processing "who is SPEAKER_00?" prompt answerable.

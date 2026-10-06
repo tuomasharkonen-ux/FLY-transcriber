@@ -254,13 +254,30 @@ def merge_speakers(turns: list[Turn], merges: dict[str, str] | None) -> list[Tur
 
 
 def samples(turns: list[Turn], max_chars: int = 90) -> dict[str, str]:
-    """First thing each speaker says, as a hint when naming them."""
+    """Each speaker's longest turn, as a hint when naming them.
+
+    Not the first: a meeting opens with "hi" and "how are you", which tells no
+    one apart. The longest turn is where someone says what they work on. Ties
+    go to the earlier turn; speakers keep the order they first spoke in.
+    """
     found: dict[str, str] = {}
     for turn in turns:
         name = turn.speaker
-        if name and name != UNATTRIBUTED and name not in found and turn.text:
-            found[name] = turn.text[:max_chars]
-    return found
+        if not name or name == UNATTRIBUTED or not turn.text.strip():
+            continue
+        if name not in found or len(turn.text.split()) > len(found[name].split()):
+            found[name] = turn.text.strip()
+    return {name: _clip(text, max_chars) for name, text in found.items()}
+
+
+def _clip(text: str, max_chars: int) -> str:
+    """Cut at a word boundary, marking the cut with an ellipsis."""
+    if len(text) <= max_chars:
+        return text
+    cut = text[: max_chars - 1]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:-") + "…"
 
 
 def render(turns: list[Turn], names: dict[str, str] | None = None) -> str:

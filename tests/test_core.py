@@ -32,7 +32,7 @@ from fly_transcriber.diarization import (
 )
 from fly_transcriber.dialogs import ask_list, ask_text, choose_folder
 from fly_transcriber.filing import ATTRIBUTION_NOTE, FilingError, file_meeting
-from fly_transcriber.transcript import Turn, load_turns, render
+from fly_transcriber.transcript import Turn, load_turns, render, samples
 from fly_transcriber.projects import (
     Project,
     SKILL_NAME,
@@ -511,12 +511,38 @@ def test_invalid_project_values_fall_back():
 # -- participants and speaker naming -----------------------------------------
 
 
-def test_speaker_samples_gives_first_line_each(tmp_path):
+def test_speaker_samples_gives_one_line_each(tmp_path):
     d = make_meeting(tmp_path, transcript=TRANSCRIPT_DIARIZED, summary=SUMMARY)
     samples = speaker_samples(parse_meeting_dir(d))
     assert list(samples) == ["SPEAKER_00", "SPEAKER_01"]
     assert samples["SPEAKER_00"].startswith("Onko")
     assert samples["SPEAKER_01"].startswith("Joo")
+
+
+def test_samples_prefer_longest_turn_over_small_talk():
+    turns = [
+        Turn("SPEAKER_00", 0, "Hei!"),
+        Turn("SPEAKER_01", 2, "Moi, mitä kuuluu?"),
+        Turn("SPEAKER_00", 5, "Hyvää. Aloitetaan budjetista, Globexin tarjous tuli eilen."),
+        Turn("SPEAKER_01", 9, "Joo."),
+        Turn("SPEAKER_01", 11, "Kävin sen läpi, hinnat ovat samat kuin viime vuonna."),
+        Turn("SPEAKER_01", 15, "Kävin myös sopimuksen läpi, ehdot ovat samat."),
+        Turn("Unknown", 20, "pitkä mutta kenenkään ei tunnistettu puhe tässä kohdassa nyt"),
+    ]
+    found = samples(turns)
+    assert list(found) == ["SPEAKER_00", "SPEAKER_01"]
+    assert found["SPEAKER_00"].startswith("Hyvää. Aloitetaan")
+    # Equal length: the earlier turn wins.
+    assert found["SPEAKER_01"].startswith("Kävin sen läpi")
+
+
+def test_samples_clip_at_a_word_boundary():
+    text = "Aloitetaan budjetista, koska Globexin tarjous tuli eilen ja se pitää käydä läpi"
+    clipped = samples([Turn("SPEAKER_00", 0, text)], max_chars=40)["SPEAKER_00"]
+    assert len(clipped) <= 40
+    assert clipped.endswith("…")
+    assert text.startswith(clipped[:-1])
+    assert clipped[-2] != " "
 
 
 def test_speaker_samples_empty_without_diarization(tmp_path):

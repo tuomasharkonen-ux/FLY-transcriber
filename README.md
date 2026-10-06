@@ -111,7 +111,7 @@ is FLY.
 2. **Stop recording** when the meeting ends. Processing starts on its own and
    the panel shows its progress.
 3. When it's done, open the panel and click the recording marked **Save**. Add
-   a title, name each speaker (each is shown with their first line), pick a
+   a title, name each speaker (each is shown with the longest thing they said), pick a
    project, and save.
 4. Ask your agent to process the inbox (`/fly-summarise` in Claude Code). It
    writes the note and, if your project allows it or you agree, deletes the raw
